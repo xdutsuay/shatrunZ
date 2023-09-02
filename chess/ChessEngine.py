@@ -8,7 +8,7 @@ It will keep move log.
 class GameState:
     def __init__(self):
         """
-        Board is an 8x8 2d list, each element in list has 2 characters.
+        Board is a 8x8 2d list, each element in list has 2 characters.
         The first character represents the color of the piece: 'b' or 'w'.
         The second character represents the type of the piece: 'R', 'N', 'B', 'Q', 'K' or 'p'.
         "--" represents an empty space with no piece.
@@ -199,7 +199,7 @@ class GameState:
                             break
                 # get rid of any moves that don't block check or move king
                 for i in range(len(moves) - 1, -1, -1):  # iterate through the list backwards when removing elements
-                    if moves[i].piece_moved[1] != "K":  # move doesn't move king so it must block or capture
+                    if moves[i].piece_moved[1] != "K":  # move doesn't move king, so it must block or capture
                         if not (moves[i].end_row,
                                 moves[i].end_col) in valid_squares:  # move doesn't block or capture piece
                             moves.remove(moves[i])
@@ -460,7 +460,7 @@ class GameState:
             if 0 <= end_row <= 7 and 0 <= end_col <= 7:
                 if not piece_pinned:
                     end_piece = self.board[end_row][end_col]
-                    if end_piece[0] != ally_color:  # so its either enemy piece or empty square
+                    if end_piece[0] != ally_color:  # so it's either enemy piece or empty square
                         moves.append(Move((row, col), (end_row, end_col), self.board))
 
     def getBishopMoves(self, row, col, moves):
@@ -563,9 +563,9 @@ class CastleRights:
 
 
 class Move:
-    # in chess, fields on the board are described by two symbols, one of them being number between 1-8 (which is corresponding to rows)
-    # and the second one being a letter between a-f (corresponding to columns), in order to use this notation we need to map our [row][col] coordinates
-    # to match the ones used in the original chess game
+    # in chess, fields on the board are described by two symbols, one of them being number between 1-8 (which is
+    # corresponding to rows) and the second one being a letter between a-f (corresponding to columns), in order to
+    # use this notation we need to map our [row][col] coordinates to match the ones used in the original chess game
     ranks_to_rows = {"1": 7, "2": 6, "3": 5, "4": 4,
                      "5": 3, "6": 2, "7": 1, "8": 0}
     rows_to_ranks = {v: k for k, v in ranks_to_rows.items()}

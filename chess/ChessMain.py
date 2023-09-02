@@ -3,17 +3,20 @@ Main driver file.
 Handling user input.
 Displaying current GameStatus object.
 """
-import pygame as p
-import ChessEngine, ChessAI
 import sys
 from multiprocessing import Process, Queue
 
+import pygame as p
+
+import ChessAI
+import ChessEngine
+
 BOARD_WIDTH = BOARD_HEIGHT = 512
-MOVE_LOG_PANEL_WIDTH = 250
+MOVE_LOG_PANEL_WIDTH = 80
 MOVE_LOG_PANEL_HEIGHT = BOARD_HEIGHT
 DIMENSION = 8
 SQUARE_SIZE = BOARD_HEIGHT // DIMENSION
-MAX_FPS = 15
+MAX_FPS = 60
 IMAGES = {}
 
 
@@ -32,6 +35,7 @@ def main():
     The main driver for our code.
     This will handle user input and updating the graphics.
     """
+    global return_queue
     p.init()
     screen = p.display.set_mode((BOARD_WIDTH + MOVE_LOG_PANEL_WIDTH, BOARD_HEIGHT))
     clock = p.time.Clock()
@@ -42,15 +46,16 @@ def main():
     animate = False  # flag variable for when we should animate a move
     loadImages()  # do this only once before while loop
     running = True
-    square_selected = ()  # no square is selected initially, this will keep track of the last click of the user (tuple(row,col))
+    square_selected = ()  # no square is selected initially, this will keep track of the last click of the user (
+    # tuple(row,col))
     player_clicks = []  # this will keep track of player clicks (two tuples)
     game_over = False
     ai_thinking = False
     move_undone = False
     move_finder_process = None
     move_log_font = p.font.SysFont("Arial", 14, False, False)
-    player_one = True  # if a human is playing white, then this will be True, else False
-    player_two = False  # if a hyman is playing white, then this will be True, else False
+    player_one = False # if a human is playing white, then this will be True, else False
+    player_two = False  # if a human is playing black, then this will be True, else False
 
     while running:
         human_turn = (game_state.white_to_move and player_one) or (not game_state.white_to_move and player_two)
