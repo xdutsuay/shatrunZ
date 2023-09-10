@@ -3,6 +3,7 @@ Storing all the information about the current state of chess game.
 Determining valid moves at current state.
 It will keep move log.
 """
+from keeplog import GameLog
 
 
 class GameState:
@@ -13,16 +14,18 @@ class GameState:
         The second character represents the type of the piece: 'R', 'N', 'B', 'Q', 'K' or 'p'.
         "--" represents an empty space with no piece.
         """
+        self.game_log = GameLog()
+        self.game_id = self.game_log.generate_game_id()
         self.board = [
-            ["bR", "bN", "bB", "bQ", "bK","bkk", "bB", "bN", "bR"],
-            ["bp", "bp", "bp", "bp", "bp", "bp", "bp", "bp","bp"],
+            ["bR", "bN", "bB", "bQ", "bK", "bkk", "bB", "bN", "bR"],
+            ["bp", "bp", "bp", "bp", "bp", "bp", "bp", "bp", "bp"],
             ["--", "--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--", "--"],
             ["--", "--", "--", "--", "--", "--", "--", "--", "--"],
-            ["wp", "wp", "wp", "wp", "wp", "wp", "wp", "wp", "--"],
-            ["wR", "wN", "wB", "wQ", "wK","wkk", "wB", "wN", "wR"]]
+            ["wp", "wp", "wp", "wp", "wp", "wp", "wp", "wp", "wp"],
+            ["wR", "wN", "wB", "wQ", "wK", "wkk", "wB", "wN", "wR"]]
         self.moveFunctions = {"p": self.getPawnMoves, "R": self.getRookMoves, "N": self.getKnightMoves,
                               "B": self.getBishopMoves, "Q": self.getQueenMoves, "K": self.getKingMoves,
                               "k": self.getKingMoves, "KK": self.getKrishnaMoves}
@@ -41,6 +44,13 @@ class GameState:
         self.castle_rights_log = [CastleRights(self.current_castling_rights.wks, self.current_castling_rights.bks,
                                                self.current_castling_rights.wqs, self.current_castling_rights.bqs)]
 
+    def append_to_game_log(self, game_id, move):
+        self.game_log.append(game_id, move)
+        self.game_log.save_to_pickle()
+
+    def get_game_log(self, game_id):
+        return self.game_log.get_game_log(game_id)
+
     def makeMove(self, move):
         """
         Takes a Move as a parameter and executes it.
@@ -49,6 +59,7 @@ class GameState:
         self.board[move.start_row][move.start_col] = "--"
         self.board[move.end_row][move.end_col] = move.piece_moved
         self.move_log.append(move)  # log the move so we can undo it later
+        self.append_to_game_log(self.game_id, move)
         self.white_to_move = not self.white_to_move  # switch players
         # update king's location if moved
         if move.piece_moved == "wK":
