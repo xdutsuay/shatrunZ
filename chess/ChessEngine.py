@@ -25,7 +25,7 @@ class GameState:
             ["wR", "wN", "wB", "wQ", "wK","wkk", "wB", "wN", "wR"]]
         self.moveFunctions = {"p": self.getPawnMoves, "R": self.getRookMoves, "N": self.getKnightMoves,
                               "B": self.getBishopMoves, "Q": self.getQueenMoves, "K": self.getKingMoves,
-                              "KK": self.getKrishnaMoves}
+                              "k": self.getKingMoves, "KK": self.getKrishnaMoves}
         self.white_to_move = True
         self.move_log = []
         self.white_king_location = (7, 4)
@@ -257,8 +257,8 @@ class GameState:
             for col in range(len(self.board[row])):
                 turn = self.board[row][col][0]
                 if (turn == "w" and self.white_to_move) or (turn == "b" and not self.white_to_move):
-                    piece = self.board[row][col][1];
-                    #self.moveFunctions[piece](row, col, moves)  # calls appropriate move function based on piece type
+                    piece = self.board[row][col][1]
+                    self.moveFunctions[piece](row, col, moves)  # calls appropriate move function based on piece type
         return moves
 
     def checkForPinsAndChecks(self):
@@ -555,6 +555,7 @@ class GameState:
             (1, -1), (1, 0), (1, 1)
         ]
         ally_color = "w" if self.white_to_move else "b"
+        enemy_color = "b" if ally_color == "w" else "w"  # Determine the enemy color
 
         for direction in directions:
             for i in range(1, 8):
