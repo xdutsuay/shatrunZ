@@ -11,10 +11,10 @@ import pygame as p
 import ChessAI
 import ChessEngine
 
-BOARD_WIDTH = BOARD_HEIGHT = 512
+BOARD_WIDTH = BOARD_HEIGHT = 540
 MOVE_LOG_PANEL_WIDTH = 80
 MOVE_LOG_PANEL_HEIGHT = BOARD_HEIGHT
-DIMENSION = 8
+DIMENSION = 9
 SQUARE_SIZE = BOARD_HEIGHT // DIMENSION
 MAX_FPS = 60
 IMAGES = {}
@@ -25,7 +25,7 @@ def loadImages():
     Initialize a global directory of images.
     This will be called exactly once in the main.
     """
-    pieces = ['wp', 'wR', 'wN', 'wB', 'wK', 'wQ', 'bp', 'bR', 'bN', 'bB', 'bK', 'bQ']
+    pieces = ['wp', 'wR', 'wN', 'wB', 'wK', 'wQ', 'bp', 'bR', 'bN', 'bB', 'bK', 'bQ', 'wkk', 'bkk']
     for piece in pieces:
         IMAGES[piece] = p.transform.scale(p.image.load("images/" + piece + ".png"), (SQUARE_SIZE, SQUARE_SIZE))
 
@@ -54,8 +54,8 @@ def main():
     move_undone = False
     move_finder_process = None
     move_log_font = p.font.SysFont("Arial", 14, False, False)
-    player_one = False # if a human is playing white, then this will be True, else False
-    player_two = False  # if a human is playing black, then this will be True, else False
+    player_one = True # if a human is playing white, then this will be True, else False
+    player_two = True  # if a human is playing black, then this will be True, else False
 
     while running:
         human_turn = (game_state.white_to_move and player_one) or (not game_state.white_to_move and player_two)
@@ -286,4 +286,5 @@ def animateMove(move, screen, board, clock):
 
 
 if __name__ == "__main__":
+    #import pdb; pdb.set_trace()
     main()

@@ -14,16 +14,18 @@ class GameState:
         "--" represents an empty space with no piece.
         """
         self.board = [
-            ["bR", "bN", "bB", "bQ", "bK", "bB", "bN", "bR"],
-            ["bp", "bp", "bp", "bp", "bp", "bp", "bp", "bp"],
-            ["--", "--", "--", "--", "--", "--", "--", "--"],
-            ["--", "--", "--", "--", "--", "--", "--", "--"],
-            ["--", "--", "--", "--", "--", "--", "--", "--"],
-            ["--", "--", "--", "--", "--", "--", "--", "--"],
-            ["wp", "wp", "wp", "wp", "wp", "wp", "wp", "wp"],
-            ["wR", "wN", "wB", "wQ", "wK", "wB", "wN", "wR"]]
+            ["bR", "bN", "bB", "bQ", "bK","bkk", "bB", "bN", "bR"],
+            ["bp", "bp", "bp", "bp", "bp", "bp", "bp", "bp","bp"],
+            ["--", "--", "--", "--", "--", "--", "--", "--", "--"],
+            ["--", "--", "--", "--", "--", "--", "--", "--", "--"],
+            ["--", "--", "--", "--", "--", "--", "--", "--", "--"],
+            ["--", "--", "--", "--", "--", "--", "--", "--", "--"],
+            ["--", "--", "--", "--", "--", "--", "--", "--", "--"],
+            ["wp", "wp", "wp", "wp", "wp", "wp", "wp", "wp", "--"],
+            ["wR", "wN", "wB", "wQ", "wK","wkk", "wB", "wN", "wR"]]
         self.moveFunctions = {"p": self.getPawnMoves, "R": self.getRookMoves, "N": self.getKnightMoves,
-                              "B": self.getBishopMoves, "Q": self.getQueenMoves, "K": self.getKingMoves}
+                              "B": self.getBishopMoves, "Q": self.getQueenMoves, "K": self.getKingMoves,
+                              "KK": self.getKrishnaMoves}
         self.white_to_move = True
         self.move_log = []
         self.white_king_location = (7, 4)
@@ -255,8 +257,8 @@ class GameState:
             for col in range(len(self.board[row])):
                 turn = self.board[row][col][0]
                 if (turn == "w" and self.white_to_move) or (turn == "b" and not self.white_to_move):
-                    piece = self.board[row][col][1]
-                    self.moveFunctions[piece](row, col, moves)  # calls appropriate move function based on piece type
+                    piece = self.board[row][col][1];
+                    #self.moveFunctions[piece](row, col, moves)  # calls appropriate move function based on piece type
         return moves
 
     def checkForPinsAndChecks(self):
@@ -542,6 +544,43 @@ class GameState:
         if (self.white_to_move and self.current_castling_rights.wqs) or (
                 not self.white_to_move and self.current_castling_rights.bqs):
             self.getQueensideCastleMoves(row, col, moves)
+
+    def getKrishnaMoves(self, row, col, moves):
+        """
+        Get all the krishna moves for the krishna located at row col and add the moves to the list.
+        """
+        directions = [
+            (-1, -1), (-1, 0), (-1, 1),
+            (0, -1), (0, 1),
+            (1, -1), (1, 0), (1, 1)
+        ]
+        ally_color = "w" if self.white_to_move else "b"
+
+        for direction in directions:
+            for i in range(1, 8):
+                end_row = row + direction[0] * i
+                end_col = col + direction[1] * i
+                if 0 <= end_row <= 8 and 0 <= end_col <= 8:  # Check if the move is on the board
+                    end_piece = self.board[end_row][end_col]
+                    if end_piece[0] != ally_color:  # Not an ally piece - empty or enemy
+                        # Place krishna on end square and check for checks
+                        if ally_color == "w":
+                            self.white_king_location = (end_row, end_col)
+                        else:
+                            self.black_king_location = (end_row, end_col)
+                        in_check, _, _ = self.checkForPinsAndChecks()
+                        if not in_check:
+                            moves.append(Move((row, col), (end_row, end_col), self.board))
+                        # Place krishna back on original location
+                        if ally_color == "w":
+                            self.white_king_location = (row, col)
+                        else:
+                            self.black_king_location = (row, col)
+
+                        if end_piece != "--":  # Capture is not allowed for krishna
+                            break
+                else:  # Off board
+                    break
 
     def getKingsideCastleMoves(self, row, col, moves):
         if self.board[row][col + 1] == '--' and self.board[row][col + 2] == '--':
