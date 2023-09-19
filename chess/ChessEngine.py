@@ -351,7 +351,7 @@ class GameState:
 
         if self.white_to_move:
             move_amount = -1
-            start_row = 6
+            start_row = 7
             enemy_color = "b"
             king_row, king_col = self.white_king_location
         else:
@@ -436,10 +436,10 @@ class GameState:
         directions = ((-1, 0), (0, -1), (1, 0), (0, 1))  # up, left, down, right
         enemy_color = "b" if self.white_to_move else "w"
         for direction in directions:
-            for i in range(1, 8):
+            for i in range(1, 9):
                 end_row = row + direction[0] * i
                 end_col = col + direction[1] * i
-                if 0 <= end_row <= 7 and 0 <= end_col <= 7:  # check for possible moves only in boundaries of the board
+                if 0 <= end_row <= 8 and 0 <= end_col <= 8:  # check for possible moves only in boundaries of the board
                     if not piece_pinned or pin_direction == direction or pin_direction == (
                             -direction[0], -direction[1]):
                         end_piece = self.board[end_row][end_col]
@@ -492,10 +492,10 @@ class GameState:
         directions = ((-1, -1), (-1, 1), (1, 1), (1, -1))  # diagonals: up/left up/right down/right down/left
         enemy_color = "b" if self.white_to_move else "w"
         for direction in directions:
-            for i in range(1, 8):
+            for i in range(1, 9):
                 end_row = row + direction[0] * i
                 end_col = col + direction[1] * i
-                if 0 <= end_row <= 7 and 0 <= end_col <= 7:  # check if the move is on board
+                if 0 <= end_row <= 8 and 0 <= end_col <= 8:  # check if the move is on board
                     if not piece_pinned or pin_direction == direction or pin_direction == (
                             -direction[0], -direction[1]):
                         end_piece = self.board[end_row][end_col]
@@ -526,7 +526,7 @@ class GameState:
         for i in range(8):
             end_row = row + row_moves[i]
             end_col = col + col_moves[i]
-            if 0 <= end_row <= 7 and 0 <= end_col <= 7:
+            if 0 <= end_row <= 8 and 0 <= end_col <= 8:
                 end_piece = self.board[end_row][end_col]
                 if end_piece[0] != ally_color:  # not an ally piece - empty or enemy
                     # place king on end square and check for checks
@@ -569,7 +569,7 @@ class GameState:
         enemy_color = "b" if ally_color == "w" else "w"  # Determine the enemy color
 
         for direction in directions:
-            for i in range(1, 8):
+            for i in range(1, 9):
                 end_row = row + direction[0] * i
                 end_col = col + direction[1] * i
                 if 0 <= end_row <= 8 and 0 <= end_col <= 8:  # Check if the move is on the board
@@ -617,11 +617,11 @@ class Move:
     # in chess, fields on the board are described by two symbols, one of them being number between 1-8 (which is
     # corresponding to rows) and the second one being a letter between a-f (corresponding to columns), in order to
     # use this notation we need to map our [row][col] coordinates to match the ones used in the original chess game
-    ranks_to_rows = {"1": 7, "2": 6, "3": 5, "4": 4,
-                     "5": 3, "6": 2, "7": 1, "8": 0}
+    ranks_to_rows = {"1": 8, "2": 7, "3": 6, "4": 5,
+                     "5": 4, "6": 3, "7": 2, "8": 1, "9": 0}
     rows_to_ranks = {v: k for k, v in ranks_to_rows.items()}
     files_to_cols = {"a": 0, "b": 1, "c": 2, "d": 3,
-                     "e": 4, "f": 5, "g": 6, "h": 7}
+                     "e": 4, "f": 5, "g": 6, "h": 7, "i": 8}
     cols_to_files = {v: k for k, v in files_to_cols.items()}
 
     def __init__(self, start_square, end_square, board, is_enpassant_move=False, is_castle_move=False):
@@ -633,7 +633,7 @@ class Move:
         self.piece_captured = board[self.end_row][self.end_col]
         # pawn promotion
         self.is_pawn_promotion = (self.piece_moved == "wp" and self.end_row == 0) or (
-                self.piece_moved == "bp" and self.end_row == 7)
+                self.piece_moved == "bp" and self.end_row == 8)
         # en passant
         self.is_enpassant_move = is_enpassant_move
         if self.is_enpassant_move:
