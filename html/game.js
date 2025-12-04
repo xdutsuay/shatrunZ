@@ -1,0 +1,137 @@
+import { BOARD_SIZE, COLORS, PIECES, WEIGHTS } from './constants.js';
+import { Rules } from './rules.js';
+
+export class Game {
+    constructor() {
+        this.board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+        this.turn = COLORS.WHITE;
+        this.gameOver = false;
+        this.moveHistory = []; // Stack for Undo
+        this.positionHistory = {}; // For Threefold Repetition
+        this.initBoard();
+    }
+
+    initBoard() {
+        // Swapped Krishna and Bishop at index 5 and 6 to ensure bishops are on opposite colors
+        const back = [PIECES.ROOK, PIECES.KNIGHT, PIECES.BISHOP, PIECES.QUEEN, PIECES.KING, PIECES.BISHOP, PIECES.KRISHNA, PIECES.KNIGHT, PIECES.ROOK];
+        back.forEach((t, c) => this.board[0][c] = { type: t, color: COLORS.BLACK });
+        for (let c = 0; c < BOARD_SIZE; c++) this.board[1][c] = { type: PIECES.PAWN, color: COLORS.BLACK };
+        for (let c = 0; c < BOARD_SIZE; c++) this.board[7][c] = { type: PIECES.PAWN, color: COLORS.WHITE };
+        back.forEach((t, c) => this.board[8][c] = { type: t, color: COLORS.WHITE });
+    }
+
+    // Hash for Repetition
+    getHash() {
+        let str = this.turn + "|";
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                const p = this.board[r][c];
+                if (p) str += `${p.color}${p.type}${r}${c}`;
+            }
+        }
+        return str;
+    }
+
+    executeMove(from, to) {
+        const p = this.board[from.r][from.c];
+        const captured = this.board[to.r][to.c];
+
+        // 1. Record History for Undo
+        this.moveHistory.push({
+            from: { ...from },
+            to: { ...to },
+            movedPiece: { ...p }, // Copy piece state
+            capturedPiece: captured ? { ...captured } : null,
+            prevTurn: this.turn,
+            hash: this.getHash() // Save hash to revert repetition count
+        });
+
+        // 2. Execute Data Move
+        // We create a new object for the destination to ensure clean state
+        this.board[to.r][to.c] = p;
+        this.board[from.r][from.c] = null;
+
+        // 3. Handle Promotion
+        if (p.type === PIECES.PAWN && (to.r === 0 || to.r === 8)) {
+            p.type = PIECES.QUEEN; // Mutates p, which is now at board[to]
+            // We stored the *original* p type in moveHistory, so undo will work
+        }
+
+        // 4. Update Game State
+        this.turn = this.turn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+
+        // Update Repetition
+        const newHash = this.getHash();
+        this.positionHistory[newHash] = (this.positionHistory[newHash] || 0) + 1;
+    }
+
+    undoLastMove() {
+        if (this.moveHistory.length === 0) return false;
+
+        const lastMove = this.moveHistory.pop();
+
+        // 1. Revert Repetition Count (of the state we are leaving)
+        const currentHash = this.getHash();
+        if (this.positionHistory[currentHash]) this.positionHistory[currentHash]--;
+
+        // 2. Restore Board
+        this.board[lastMove.from.r][lastMove.from.c] = lastMove.movedPiece;
+        this.board[lastMove.to.r][lastMove.to.c] = lastMove.capturedPiece;
+
+        // 3. Restore Turn & State
+        this.turn = lastMove.prevTurn;
+        this.gameOver = false; // If we undo a checkmate, game is on again
+
+        return true;
+    }
+
+    checkStatus() {
+        // Returns status object: { over: bool, msg: string, winner: 'w'/'b'/null }
+        const inCheck = Rules.isKingInCheck(this.board, this.turn);
+        const hasMoves = this.hasLegalMoves(this.turn);
+
+        // Repetition Check
+        const h = this.getHash();
+        if (this.positionHistory[h] >= 3) {
+            return { over: true, msg: "Draw by Repetition", winner: null };
+        }
+
+        if (!hasMoves) {
+            if (inCheck) {
+                const winner = this.turn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+                return { over: true, msg: `CHECKMATE! ${winner === COLORS.WHITE ? "White" : "Black"} Wins`, winner: winner };
+            } else {
+                return { over: true, msg: "Stalemate", winner: null };
+            }
+        }
+
+        let msg = this.turn === COLORS.WHITE ? "White's Turn" : "Black's Turn";
+        if (inCheck) msg += " (CHECK)";
+        return { over: false, msg: msg, winner: null };
+    }
+
+    hasLegalMoves(color) {
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                if (this.board[r][c] && this.board[r][c].color === color) {
+                    if (Rules.getLegalMoves(this.board, r, c, true).length > 0) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    getScore() {
+        let w = 0, b = 0;
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                const p = this.board[r][c];
+                if (p) {
+                    if (p.color === COLORS.WHITE) w += WEIGHTS[p.type];
+                    else b += WEIGHTS[p.type];
+                }
+            }
+        }
+        return w - b;
+    }
+}

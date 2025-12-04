@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ShatrunZ - Modular 9x9</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="main-layout">
+        <div class="board-area">
+            <div class="user-tag top">
+                <span class="user-icon">👤</span> <span id="opponent-name">Opponent</span>
+                <span id="brain-stats" class="brain-tag">Brain: 0</span>
+            </div>
+
+            <div id="board"></div>
+
+            <div class="user-tag bottom">
+                <span class="user-icon">👤</span> <span>You</span>
+                <div id="thinking-indicator"></div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>ShatrunZ <span class="version">9x9</span></h1>
+            </div>
+
+            <div class="game-status">
+                <div id="status">White's Turn</div>
+                <div id="scoreboard">Material: Equal</div>
+            </div>
+
+            <div class="tabs">
+                <button id="mode-hvh" class="tab-btn active">PvP</button>
+                <button id="mode-hvc" class="tab-btn">PvAI</button>
+                <button id="mode-cvc" class="tab-btn">AIvAI</button>
+            </div>
+
+            <div class="controls-panel">
+                <div class="control-group">
+                    <label>AI Level <span id="ai-level-label" class="badge">3</span></label>
+                    <input id="ai-level" type="range" min="1" max="5" value="3">
+                </div>
+
+                <div class="control-group">
+                    <label>Play As</label>
+                    <div class="toggle-group">
+                        <select id="computer-side">
+                            <option value="black" selected>Black (AI)</option>
+                            <option value="white">White (AI)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button id="btn-undo" class="btn secondary">↶ Undo</button>
+                    <button id="reset-game" class="btn secondary">New Game</button>
+                </div>
+
+                <div class="ai-controls">
+                    <button id="start-auto" class="btn primary">Start AI</button>
+                    <button id="stop-auto" class="btn danger" disabled>Stop</button>
+                </div>
+
+                <button id="btn-hyper-train" class="btn warning full-width">
+                    ⚡ Hyper-Train (Self Play)
+                </button>
+                <button id="reset-brain" class="btn text-only">Reset Brain Memory</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="training-overlay">
+        <div class="overlay-content">
+            <h2>🧠 Hyper-Training...</h2>
+            <div id="train-status">Simulating Game 1/50</div>
+            <div class="progress-container">
+                <div id="train-progress" class="progress-bar"></div>
+            </div>
+            <button id="cancel-train" class="btn danger">Cancel</button>
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+
+</html>

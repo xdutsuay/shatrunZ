@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ShatrunZ - 9x9 Hyper AI</title>
+    <style>
+        /* --- ORIGINAL STYLES (PRESERVED) --- */
+        :root {
+            --bg-color: #2c2c2c;
+            --board-light: #eeeed2;
+            --board-dark: #769656;
+            --highlight: rgba(255, 255, 0, 0.5);
+            --legal-move: rgba(100, 200, 100, 0.6);
+            --sq-size: min(9.5vw, 55px);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        h1 {
+            margin: 10px 0;
+            font-size: 1.5rem;
+            color: #ff9800;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #controls-container {
+            width: 95%;
+            max-width: 600px;
+            background: #3a3a3a;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        button {
+            background: #555;
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+
+        button.active {
+            background: #2a9d8f;
+            box-shadow: 0 0 5px #2a9d8f;
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* NEW STYLE: Training Button */
+        .btn-train {
+            background: #f57f17;
+            color: black;
+            width: 100%;
+            margin-top: 5px;
+        }
+
+        .btn-train:hover {
+            background: #ffb74d;
+        }
+
+        input[type=range] {
+            width: 100px;
+        }
+
+        select {
+            padding: 5px;
+            border-radius: 4px;
+            background: #222;
+            color: white;
+            border: 1px solid #555;
+        }
+
+        #scoreboard {
+            background: #222;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-family: monospace;
+            font-size: 1rem;
+            color: #4db6ac;
+        }
+
+        #thinking-indicator {
+            height: 20px;
+            font-style: italic;
+            color: #ff9800;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(9, var(--sq-size));
+            grid-template-rows: repeat(9, var(--sq-size));
+            border: 5px solid #555;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .square {
+            width: var(--sq-size);
+            height: var(--sq-size);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: calc(var(--sq-size) * 0.75);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .square.light {
+            background-color: var(--board-light);
+            color: black;
+        }
+
+        .square.dark {
+            background-color: var(--board-dark);
+            color: white;
+        }
+
+        .square.selected {
+            background-color: var(--highlight) !important;
+        }
+
+        .square.last-move {
+            background-color: rgba(155, 89, 182, 0.5) !important;
+        }
+
+        .square.legal-move::after {
+            content: '';
+            width: 25%;
+            height: 25%;
+            background-color: rgba(0, 0, 0, 0.4);
+            border-radius: 50%;
+        }
+
+        .square.capture-move::after {
+            content: '';
+            width: 80%;
+            height: 80%;
+            border: 4px solid rgba(200, 0, 0, 0.5);
+            border-radius: 50%;
+            background-color: transparent;
+        }
+
+        .piece {
+            cursor: grab;
+            z-index: 2;
+            user-select: none;
+        }
+
+        .white-piece {
+            color: #fff;
+            text-shadow: 0 0 2px #000;
+        }
+
+        .black-piece {
+            color: #000;
+            text-shadow: 0 0 1px #fff;
+        }
+
+        .piece.krishna {
+            color: #ff9800;
+            font-weight: bold;
+            text-shadow: 0 0 3px #000;
+        }
+
+        .coord {
+            position: absolute;
+            font-size: 0.25em;
+            opacity: 0.6;
+            pointer-events: none;
+            color: inherit;
+        }
+
+        .coord.rank {
+            top: 2px;
+            left: 2px;
+        }
+
+        .coord.file {
+            bottom: 2px;
+            right: 2px;
+        }
+
+        #status {
+            padding: 8px 16px;
+            background: #444;
+            border-radius: 20px;
+            font-weight: bold;
+            border: 1px solid #666;
+        }
+
+        /* NEW: Training Overlay */
+        #training-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 100;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+        }
+
+        .progress-container {
+            width: 80%;
+            max-width: 300px;
+            height: 20px;
+            background: #444;
+            border-radius: 10px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: #f57f17;
+            transition: width 0.2s;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>ShatrunZ (9x9)</h1>
+
+    <div id="controls-container">
+        <div class="control-row">
+            <div>
+                <button id="mode-hvh" class="mode-btn active">PvP</button>
+                <button id="mode-hvc" class="mode-btn">PvAI</button>
+                <button id="mode-cvc" class="mode-btn">AIvAI</button>
+            </div>
+            <div>
+                <button id="reset-brain" class="control-btn" style="font-size:0.8em; background:#7f2a2a;">Clear
+                    Brain</button>
+                <button id="reset-game" class="control-btn" style="background:#444;">New Game</button>
+            </div>
+        </div>
+
+        <button id="btn-hyper-train" class="btn-train">⚡ Hyper-Train (Self Play)</button>
+
+        <div class="control-row" id="ai-settings">
+            <div style="display:flex; align-items:center; gap:5px;">
+                <label for="ai-level" style="font-size:0.9rem;">Strength:</label>
+                <input id="ai-level" type="range" min="1" max="5" value="3" />
+                <span id="ai-level-label">3</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:5px;">
+                <label for="computer-side" style="font-size:0.9rem;">AI Plays:</label>
+                <select id="computer-side">
+                    <option value="black" selected>Black</option>
+                    <option value="white">White</option>
+                </select>
+            </div>
+            <div>
+                <button id="start-auto" class="control-btn">Start AI</button>
+                <button id="stop-auto" class="control-btn" disabled>Stop</button>
+            </div>
+        </div>
+
+        <div id="scoreboard">Material: Equal</div>
+        <div id="thinking-indicator"></div>
+        <div id="brain-stats" style="font-size: 0.7rem; color: #888; text-align: center; margin-top: 5px;">Brain: 0 pos
+        </div>
+    </div>
+
+    <div id="board"></div>
+    <div id="status">White's Turn</div>
+
+    <div id="training-overlay">
+        <h2>🧠 Hyper-Training...</h2>
+        <div id="train-status">Simulating Game 1/50</div>
+        <div class="progress-container">
+            <div id="train-progress" class="progress-bar"></div>
+        </div>
+        <p style="font-size: 0.8rem; color: #aaa; margin-top:10px;">UI Rendering Disabled for Speed</p>
+    </div>
+
+    <script>
+        /**
+         * SHATRUNZ 9x9 - REPAIRED & ENHANCED
+         */
+
+        // --- Constants ---
+        const BOARD_SIZE = 9;
+        const FILES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+        const COLORS = { WHITE: 'w', BLACK: 'b' };
+        const PIECES = { PAWN: 'p', ROOK: 'r', KNIGHT: 'n', BISHOP: 'b', QUEEN: 'q', KING: 'k', KRISHNA: 'z' };
+        const SYMBOLS = {
+            w: { p: '♙', r: '♖', n: '♘', b: '♗', q: '♕', k: '♔', z: '☸' },
+            b: { p: '♟', r: '♜', n: '♞', b: '♝', q: '♛', k: '♚', z: '☸' }
+        };
+
+        // Global Flag to disable UI rendering during hyper-training
+        let IS_TRAINING = false;
+
+        // --- Game Logic ---
+        class Rules {
+            static isWithinBounds(r, c) { return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE; }
+
+            static getLegalMoves(boardState, r, c, checkKingSafety = true) {
+                const piece = boardState[r][c];
+                if (!piece) return [];
+                let moves = [];
+                const type = piece.type;
+                const color = piece.color;
+                const forward = color === COLORS.WHITE ? -1 : 1;
+
+                // PAWN
+                if (type === PIECES.PAWN) {
+                    if (Rules.isWithinBounds(r + forward, c) && !boardState[r + forward][c]) {
+                        moves.push({ r: r + forward, c: c });
+                        const startRank = color === COLORS.WHITE ? 7 : 1;
+                        if (r === startRank && !boardState[r + (forward * 2)][c] && !boardState[r + forward][c]) {
+                            moves.push({ r: r + (forward * 2), c: c });
+                        }
+                    }
+                    [[forward, -1], [forward, 1]].forEach(offset => {
+                        const tr = r + offset[0], tc = c + offset[1];
+                        if (Rules.isWithinBounds(tr, tc)) {
+                            const target = boardState[tr][tc];
+                            if (target && target.color !== color) moves.push({ r: tr, c: tc });
+                        }
+                    });
+                }
+                // SLIDERS
+                else if ([PIECES.ROOK, PIECES.BISHOP, PIECES.QUEEN].includes(type)) {
+                    const directions = [];
+                    if (type !== PIECES.BISHOP) directions.push([0, 1], [0, -1], [1, 0], [-1, 0]);
+                    if (type !== PIECES.ROOK) directions.push([1, 1], [1, -1], [-1, 1], [-1, -1]);
+                    directions.forEach(dir => {
+                        for (let i = 1; i < BOARD_SIZE; i++) {
+                            const tr = r + (dir[0] * i), tc = c + (dir[1] * i);
+                            if (!Rules.isWithinBounds(tr, tc)) break;
+                            const target = boardState[tr][tc];
+                            if (!target) moves.push({ r: tr, c: tc });
+                            else {
+                                if (target.color !== color) moves.push({ r: tr, c: tc });
+                                break;
+                            }
+                        }
+                    });
+                }
+                // STEPPERS
+                else {
+                    let offsets = (type === PIECES.KNIGHT)
+                        ? [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]]
+                        : [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+
+                    offsets.forEach(off => {
+                        const tr = r + off[0], tc = c + off[1];
+                        if (Rules.isWithinBounds(tr, tc)) {
+                            const target = boardState[tr][tc];
+                            if (type === PIECES.KRISHNA) { if (!target) moves.push({ r: tr, c: tc }); }
+                            else if (!target || target.color !== color) moves.push({ r: tr, c: tc });
+                        }
+                    });
+                }
+
+                // Filter: No capturing Krishna
+                moves = moves.filter(m => {
+                    const t = boardState[m.r][m.c];
+                    return !(t && t.type === PIECES.KRISHNA);
+                });
+
+                // Filter: Check Safety
+                if (checkKingSafety) {
+                    moves = moves.filter(m => {
+                        const saved = boardState[m.r][m.c];
+                        boardState[m.r][m.c] = boardState[r][c];
+                        boardState[r][c] = null;
+                        const inCheck = Rules.isKingInCheck(boardState, color);
+                        boardState[r][c] = boardState[m.r][m.c];
+                        boardState[m.r][m.c] = saved;
+                        return !inCheck;
+                    });
+                }
+                return moves;
+            }
+
+            static isKingInCheck(board, color) {
+                let kR, kC;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (board[r][c] && board[r][c].color === color && board[r][c].type === PIECES.KING) {
+                            kR = r; kC = c; break;
+                        }
+                    }
+                }
+                if (kR === undefined) return true;
+
+                const enemyColor = color === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+
+                // Ray checks (Optimized)
+                const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+                for (let dir of dirs) {
+                    for (let i = 1; i < BOARD_SIZE; i++) {
+                        const tr = kR + (dir[0] * i), tc = kC + (dir[1] * i);
+                        if (!Rules.isWithinBounds(tr, tc)) break;
+                        const p = board[tr][tc];
+                        if (p) {
+                            if (p.color === enemyColor) {
+                                const t = p.type;
+                                if (t === PIECES.KRISHNA) break;
+                                const isOrtho = (dir[0] === 0 || dir[1] === 0);
+                                if (isOrtho && (t === PIECES.ROOK || t === PIECES.QUEEN)) return true;
+                                if (!isOrtho && (t === PIECES.BISHOP || t === PIECES.QUEEN)) return true;
+                                if (i === 1 && t === PIECES.KING) return true;
+                                if (i === 1 && !isOrtho && t === PIECES.PAWN) {
+                                    if (enemyColor === COLORS.WHITE && dir[0] === 1) return true;
+                                    if (enemyColor === COLORS.BLACK && dir[0] === -1) return true;
+                                }
+                            }
+                            break;
+                        }
+                    }
+                }
+                // Knight checks
+                const knightOffsets = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+                for (let off of knightOffsets) {
+                    const tr = kR + off[0], tc = kC + off[1];
+                    if (Rules.isWithinBounds(tr, tc)) {
+                        const p = board[tr][tc];
+                        if (p && p.color === enemyColor && p.type === PIECES.KNIGHT) return true;
+                    }
+                }
+                return false;
+            }
+
+            static hasLegalMoves(board, color) {
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (board[r][c] && board[r][c].color === color) {
+                            if (Rules.getLegalMoves(board, r, c, true).length > 0) return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        }
+
+        // --- AI BRAIN ---
+        class GameBrain {
+            constructor() {
+                this.memoryKey = 'shatrunz_brain_v2';
+                this.memory = this.loadMemory();
+                this.currentGameHistory = [];
+                this.updateStats();
+            }
+
+            loadMemory() {
+                try {
+                    const data = localStorage.getItem(this.memoryKey);
+                    return data ? JSON.parse(data) : {};
+                } catch (e) { return {}; }
+            }
+
+            saveMemory() {
+                try {
+                    localStorage.setItem(this.memoryKey, JSON.stringify(this.memory));
+                    this.updateStats();
+                } catch (e) { console.error("Memory full"); }
+            }
+
+            clear() {
+                this.memory = {};
+                localStorage.removeItem(this.memoryKey);
+                this.updateStats();
+            }
+
+            updateStats() {
+                const el = document.getElementById('brain-stats');
+                if (el) el.innerText = `Brain: ${Object.keys(this.memory).length} pos`;
+            }
+
+            hashBoard(board, turn) {
+                let str = turn + "|";
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        const p = board[r][c];
+                        if (p) str += `${p.color}${p.type}${r}${c}`;
+                    }
+                }
+                // Simple hash
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                    hash |= 0;
+                }
+                return hash.toString();
+            }
+
+            recordMove(board, turn, moveStr) {
+                this.currentGameHistory.push({
+                    hash: this.hashBoard(board, turn),
+                    move: moveStr
+                });
+            }
+
+            finalizeGame(result) {
+                if (this.currentGameHistory.length === 0) return;
+
+                const decay = 0.9;
+                let reward = result === 'win' ? 10 : (result === 'loss' ? -10 : -2);
+
+                for (let i = this.currentGameHistory.length - 1; i >= 0; i--) {
+                    const entry = this.currentGameHistory[i];
+                    const key = entry.hash;
+                    if (!this.memory[key]) this.memory[key] = {};
+                    if (!this.memory[key][entry.move]) this.memory[key][entry.move] = 0;
+
+                    this.memory[key][entry.move] += reward;
+                    reward *= decay;
+                }
+                this.saveMemory();
+                this.currentGameHistory = [];
+            }
+
+            getBonus(board, turn, move) {
+                const h = this.hashBoard(board, turn);
+                const mStr = `${move.from.r}${move.from.c}-${move.to.r}${move.to.c}`;
+                if (this.memory[h] && this.memory[h][mStr]) {
+                    return this.memory[h][mStr] * 0.2;
+                }
+                return 0;
+            }
+        }
+
+        // --- EVALUATION ---
+        const WEIGHTS = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000, z: 0 };
+        const PST = {
+            p: [
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [50, 50, 50, 50, 50, 50, 50, 50, 50],
+                [10, 10, 20, 30, 30, 30, 20, 10, 10],
+                [5, 5, 10, 25, 25, 25, 10, 5, 5],
+                [0, 0, 0, 20, 20, 20, 0, 0, 0],
+                [5, -5, -10, 0, 0, 0, -10, -5, 5],
+                [5, 10, 10, -20, -20, -20, 10, 10, 5],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+        };
+
+        class AIPlayer {
+            constructor(level) {
+                this.brain = new GameBrain();
+                this.nodes = 0;
+                this.setLevel(level);
+            }
+
+            setLevel(l) {
+                this.level = l;
+                this.searchDepth = l <= 2 ? 1 : (l <= 4 ? 2 : 3);
+            }
+
+            evaluate(board, turn) {
+                let score = 0;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        const p = board[r][c];
+                        if (!p) continue;
+                        let val = WEIGHTS[p.type];
+
+                        // Simple PST for pawns only to save CPU
+                        if (p.type === PIECES.PAWN) {
+                            let pR = p.color === COLORS.WHITE ? r : (BOARD_SIZE - 1 - r);
+                            val += PST.p[pR][c];
+                        } else if ([PIECES.KNIGHT, PIECES.BISHOP].includes(p.type)) {
+                            // Centralize logic simplified
+                            if (r > 2 && r < 6 && c > 2 && c < 6) val += 10;
+                        }
+
+                        if (p.color === COLORS.WHITE) score += val;
+                        else score -= val;
+                    }
+                }
+                return turn === COLORS.WHITE ? score : -score;
+            }
+
+            minimax(board, depth, alpha, beta, isMaximizing, turn) {
+                this.nodes++;
+                if (depth === 0) return this.evaluate(board, turn);
+
+                const legalMoves = this.generateAllMoves(board, turn);
+                if (legalMoves.length === 0) {
+                    if (Rules.isKingInCheck(board, turn)) return -100000 + (10 - depth);
+                    return 0;
+                }
+
+                if (isMaximizing) {
+                    let maxEval = -Infinity;
+                    for (const move of legalMoves) {
+                        const saved = this.applyMove(board, move);
+                        const evalVal = this.minimax(board, depth - 1, alpha, beta, false, turn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE);
+                        this.undoMove(board, move, saved);
+                        maxEval = Math.max(maxEval, evalVal);
+                        alpha = Math.max(alpha, evalVal);
+                        if (beta <= alpha) break;
+                    }
+                    return maxEval;
+                } else {
+                    let minEval = Infinity;
+                    for (const move of legalMoves) {
+                        const saved = this.applyMove(board, move);
+                        const evalVal = this.minimax(board, depth - 1, alpha, beta, true, turn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE);
+                        this.undoMove(board, move, saved);
+                        minEval = Math.min(minEval, evalVal);
+                        beta = Math.min(beta, evalVal);
+                        if (beta <= alpha) break;
+                    }
+                    return minEval;
+                }
+            }
+
+            generateAllMoves(board, color) {
+                let moves = [];
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (board[r][c] && board[r][c].color === color) {
+                            const legals = Rules.getLegalMoves(board, r, c, true);
+                            legals.forEach(to => moves.push({ from: { r, c }, to: to }));
+                        }
+                    }
+                }
+                // Optimization: Sort captures first
+                moves.sort((a, b) => {
+                    const tA = board[a.to.r][a.to.c] ? 1 : 0;
+                    const tB = board[b.to.r][b.to.c] ? 1 : 0;
+                    return tB - tA;
+                });
+                return moves;
+            }
+
+            applyMove(board, move) {
+                const savedFrom = board[move.from.r][move.from.c];
+                const savedTo = board[move.to.r][move.to.c];
+                board[move.to.r][move.to.c] = savedFrom;
+                board[move.from.r][move.from.c] = null;
+                let promoted = false;
+                if (savedFrom.type === PIECES.PAWN && (move.to.r === 0 || move.to.r === 8)) {
+                    savedFrom.type = PIECES.QUEEN;
+                    promoted = true;
+                }
+                return { from: savedFrom, to: savedTo, promoted: promoted };
+            }
+
+            undoMove(board, move, saved) {
+                if (saved.promoted) saved.from.type = PIECES.PAWN;
+                board[move.from.r][move.from.c] = saved.from;
+                board[move.to.r][move.to.c] = saved.to;
+            }
+
+            async getBestMove(board, color, fastMode = false) {
+                this.nodes = 0;
+                const moves = this.generateAllMoves(board, color);
+                if (moves.length === 0) return null;
+
+                if (this.level === 1) return moves[Math.floor(Math.random() * moves.length)];
+
+                let bestMove = null;
+                let bestVal = -Infinity;
+
+                // Shuffle for variety
+                moves.sort(() => Math.random() - 0.5);
+
+                for (const move of moves) {
+                    const saved = this.applyMove(board, move);
+                    let val = this.minimax(board, this.searchDepth - 1, -Infinity, Infinity, false, color === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE);
+                    val += this.brain.getBonus(board, color, move);
+                    this.undoMove(board, move, saved);
+
+                    if (val > bestVal) {
+                        bestVal = val;
+                        bestMove = move;
+                    }
+
+                    // Skip UI block if in fast mode
+                    if (!fastMode && this.nodes % 500 === 0) await new Promise(r => setTimeout(r, 0));
+                }
+
+                if (!fastMode) console.log(`Nodes: ${this.nodes}`);
+
+                const mStr = `${bestMove.from.r}${bestMove.from.c}-${bestMove.to.r}${bestMove.to.c}`;
+                this.brain.recordMove(board, color, mStr);
+
+                return bestMove;
+            }
+        }
+
+        // --- Main Game Controller ---
+        class Game {
+            constructor() {
+                this.board = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+                this.turn = COLORS.WHITE;
+                this.selected = null;
+                this.moves = [];
+                this.gameOver = false;
+                this.ai = new AIPlayer(3);
+
+                // NEW: Threefold Repetition tracking
+                this.positionHistory = {};
+
+                this.initBoard();
+                this.ui = new UI(this);
+                this.updateScore();
+            }
+
+            initBoard() {
+                const back = [PIECES.ROOK, PIECES.KNIGHT, PIECES.BISHOP, PIECES.QUEEN, PIECES.KING, PIECES.KRISHNA, PIECES.BISHOP, PIECES.KNIGHT, PIECES.ROOK];
+                back.forEach((t, c) => this.board[0][c] = { type: t, color: COLORS.BLACK });
+                for (let c = 0; c < BOARD_SIZE; c++) this.board[1][c] = { type: PIECES.PAWN, color: COLORS.BLACK };
+                for (let c = 0; c < BOARD_SIZE; c++) this.board[7][c] = { type: PIECES.PAWN, color: COLORS.WHITE };
+                back.forEach((t, c) => this.board[8][c] = { type: t, color: COLORS.WHITE });
+                this.recordPosition();
+            }
+
+            recordPosition() {
+                const hash = this.ai.brain.hashBoard(this.board, this.turn);
+                this.positionHistory[hash] = (this.positionHistory[hash] || 0) + 1;
+            }
+
+            click(r, c) {
+                if (this.gameOver || (this.isAiTurn() && autoRunning) || IS_TRAINING) return;
+
+                const move = this.moves.find(m => m.r === r && m.c === c);
+                if (move) {
+                    this.executeMove(this.selected, move);
+                    return;
+                }
+
+                const p = this.board[r][c];
+                if (p && p.color === this.turn) {
+                    this.selected = { r, c };
+                    this.moves = Rules.getLegalMoves(this.board, r, c);
+                    this.ui.render();
+                    return;
+                }
+
+                this.selected = null;
+                this.moves = [];
+                this.ui.render();
+            }
+
+            executeMove(from, to) {
+                const p = this.board[from.r][from.c];
+                this.board[to.r][to.c] = p;
+                this.board[from.r][from.c] = null;
+
+                if (p.type === PIECES.PAWN && (to.r === 0 || to.r === 8)) p.type = PIECES.QUEEN;
+
+                // Reset history on capture or pawn move (Optimization, standard chess rules)
+                // For simplicity, we just check pawn move or capture here
+                // Note: Strict repetition check includes castling rights etc, but for 9x9 basic hash is fine.
+
+                this.lastMove = { from, to };
+                this.turn = this.turn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+
+                this.recordPosition();
+
+                this.checkStatus();
+                this.updateScore();
+                if (!IS_TRAINING) this.ui.render();
+            }
+
+            checkStatus() {
+                const inCheck = Rules.isKingInCheck(this.board, this.turn);
+                const hasMoves = Rules.hasLegalMoves(this.board, this.turn);
+
+                let msg = this.turn === COLORS.WHITE ? "White's Turn" : "Black's Turn";
+                if (inCheck) msg += " (CHECK)";
+
+                // NEW: Check Repetition
+                const currentHash = this.ai.brain.hashBoard(this.board, this.turn);
+                if (this.positionHistory[currentHash] >= 3) {
+                    this.gameOver = true;
+                    msg = "Draw by Threefold Repetition!";
+                    this.ai.brain.finalizeGame('draw');
+                    if (!IS_TRAINING) stopAuto();
+                }
+
+                if (!hasMoves) {
+                    this.gameOver = true;
+                    if (inCheck) {
+                        const winner = this.turn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+                        msg = `CHECKMATE! ${winner === COLORS.WHITE ? "White" : "Black"} Wins!`;
+
+                        // Learn
+                        if (currentMode !== MODES.HVH || IS_TRAINING) {
+                            const aiColor = document.getElementById('computer-side').value === 'white' ? COLORS.WHITE : COLORS.BLACK;
+                            // In self-play, whoever won is the 'winner'
+                            let res = 'loss';
+                            if (IS_TRAINING) {
+                                // For training, update based on result
+                                this.ai.brain.finalizeGame(winner === COLORS.WHITE ? 'win' : 'loss'); // Simplification
+                            } else {
+                                res = (winner === aiColor) ? 'win' : 'loss';
+                                this.ai.brain.finalizeGame(res);
+                            }
+                        }
+                    } else {
+                        msg = "STALEMATE! Draw.";
+                        this.ai.brain.finalizeGame('draw');
+                    }
+                    if (!IS_TRAINING) stopAuto();
+                }
+                if (!IS_TRAINING) document.getElementById('status').innerText = msg;
+            }
+
+            updateScore() {
+                let w = 0, b = 0;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        const p = this.board[r][c];
+                        if (p) {
+                            if (p.color === COLORS.WHITE) w += WEIGHTS[p.type];
+                            else b += WEIGHTS[p.type];
+                        }
+                    }
+                }
+                const diff = w - b;
+                const txt = diff === 0 ? "Equal" : (diff > 0 ? `White +${diff}` : `Black +${Math.abs(diff)}`);
+                document.getElementById('scoreboard').innerText = `Material: ${txt}`;
+            }
+
+            isAiTurn() {
+                if (currentMode === MODES.HVH) return false;
+                if (currentMode === MODES.CVC) return true;
+                const aiSide = document.getElementById('computer-side').value === 'white' ? COLORS.WHITE : COLORS.BLACK;
+                return this.turn === aiSide;
+            }
+        }
+
+        // --- UI Class ---
+        class UI {
+            constructor(game) {
+                this.game = game;
+                this.el = document.getElementById('board');
+                this.render();
+            }
+
+            render() {
+                if (IS_TRAINING) return; // Prevent render during training
+
+                this.el.innerHTML = '';
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        const sq = document.createElement('div');
+                        sq.className = `square ${(r + c) % 2 === 0 ? 'light' : 'dark'}`;
+                        sq.onclick = () => this.game.click(r, c);
+
+                        if (c === 0) {
+                            const t = document.createElement('span'); t.className = 'coord rank'; t.innerText = 9 - r; sq.appendChild(t);
+                        }
+                        if (r === 8) {
+                            const t = document.createElement('span'); t.className = 'coord file'; t.innerText = FILES[c]; sq.appendChild(t);
+                        }
+
+                        if (this.game.selected && this.game.selected.r === r && this.game.selected.c === c) sq.classList.add('selected');
+                        if (this.game.lastMove && ((this.game.lastMove.from.r === r && this.game.lastMove.from.c === c) || (this.game.lastMove.to.r === r && this.game.lastMove.to.c === c))) {
+                            sq.classList.add('last-move');
+                        }
+
+                        const isLegal = this.game.moves.find(m => m.r === r && m.c === c);
+                        if (isLegal) {
+                            if (this.game.board[r][c]) sq.classList.add('capture-move');
+                            else sq.classList.add('legal-move');
+                        }
+
+                        const p = this.game.board[r][c];
+                        if (p) {
+                            const d = document.createElement('div');
+                            d.className = `piece ${p.color === 'w' ? 'white-piece' : 'black-piece'} ${p.type === PIECES.KRISHNA ? 'krishna' : ''}`;
+                            d.innerText = SYMBOLS[p.color][p.type];
+                            sq.appendChild(d);
+                        }
+                        this.el.appendChild(sq);
+                    }
+                }
+            }
+        }
+
+        // --- Initialization & Loop ---
+        let game = new Game();
+        let autoRunning = false;
+        const MODES = { HVH: 'hvh', HVC: 'hvc', CVC: 'cvc' };
+        let currentMode = MODES.HVH;
+
+        // Listeners
+        document.getElementById('mode-hvh').onclick = () => setMode(MODES.HVH);
+        document.getElementById('mode-hvc').onclick = () => setMode(MODES.HVC);
+        document.getElementById('mode-cvc').onclick = () => setMode(MODES.CVC);
+        document.getElementById('reset-game').onclick = () => { stopAuto(); game = new Game(); };
+        document.getElementById('reset-brain').onclick = () => { game.ai.brain.clear(); alert('AI Memory Cleared'); };
+
+        document.getElementById('ai-level').oninput = (e) => {
+            document.getElementById('ai-level-label').innerText = e.target.value;
+            game.ai.setLevel(parseInt(e.target.value));
+        };
+
+        document.getElementById('start-auto').onclick = () => {
+            if (autoRunning) return;
+            autoRunning = true;
+            document.getElementById('stop-auto').disabled = false;
+            document.getElementById('start-auto').disabled = true;
+            aiLoop();
+        };
+        document.getElementById('stop-auto').onclick = stopAuto;
+
+        function setMode(m) {
+            currentMode = m;
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`mode-${m}`).classList.add('active');
+            stopAuto();
+            if (m !== MODES.HVH) document.getElementById('start-auto').disabled = false;
+        }
+
+        function stopAuto() {
+            autoRunning = false;
+            document.getElementById('stop-auto').disabled = true;
+            document.getElementById('start-auto').disabled = (currentMode === MODES.HVH);
+            document.getElementById('thinking-indicator').innerText = '';
+        }
+
+        async function aiLoop() {
+            while (autoRunning && !game.gameOver) {
+                if (game.isAiTurn()) {
+                    document.getElementById('thinking-indicator').innerText = 'Thinking...';
+                    await new Promise(r => setTimeout(r, 100));
+
+                    const boardCopy = game.board.map(row => row.map(cell => cell ? { ...cell } : null));
+                    const move = await game.ai.getBestMove(boardCopy, game.turn);
+
+                    document.getElementById('thinking-indicator').innerText = '';
+
+                    if (move) {
+                        game.executeMove(move.from, move.to);
+                    } else {
+                        break;
+                    }
+                    await new Promise(r => setTimeout(r, 500));
+                } else {
+                    if (currentMode === MODES.HVC) {
+                        await new Promise(r => setTimeout(r, 500));
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // --- HYPER TRAINING LOGIC ---
+        const GAMES_TO_TRAIN = 50;
+        document.getElementById('btn-hyper-train').onclick = startHyperTrain;
+
+        async function startHyperTrain() {
+            if (IS_TRAINING) return;
+
+            // UI Setup
+            IS_TRAINING = true;
+            stopAuto();
+            const overlay = document.getElementById('training-overlay');
+            const statusEl = document.getElementById('train-status');
+            const barEl = document.getElementById('train-progress');
+            overlay.style.display = 'flex';
+
+            // Save previous level
+            const prevLevel = game.ai.level;
+            // Force efficient training level (Depth 1/2 is fast)
+            game.ai.setLevel(2);
+
+            for (let i = 1; i <= GAMES_TO_TRAIN; i++) {
+                // Reset Game state silently
+                game = new Game();
+                game.ai.setLevel(2); // Ensure new AI instance has correct level
+
+                statusEl.innerText = `Simulating Game ${i}/${GAMES_TO_TRAIN}`;
+                barEl.style.width = `${(i / GAMES_TO_TRAIN) * 100}%`;
+
+                // Play one game to completion (or 150 moves cap)
+                let moves = 0;
+                while (!game.gameOver && moves < 150) {
+                    const boardCopy = game.board.map(row => row.map(cell => cell ? { ...cell } : null));
+                    // Pass 'true' for fastMode
+                    const move = await game.ai.getBestMove(boardCopy, game.turn, true);
+
+                    if (move) {
+                        game.executeMove(move.from, move.to);
+                    } else {
+                        break;
+                    }
+                    moves++;
+                    // Yield to main thread every 20 moves to update progress bar
+                    if (moves % 20 === 0) await new Promise(r => setTimeout(r, 0));
+                }
+            }
+
+            // Cleanup
+            IS_TRAINING = false;
+            overlay.style.display = 'none';
+            game = new Game(); // Reset to fresh game for user
+            game.ai.setLevel(prevLevel); // Restore level
+            alert(`Hyper-Training Complete! Played ${GAMES_TO_TRAIN} games.`);
+        }
+    </script>
+</body>
+
+</html>
