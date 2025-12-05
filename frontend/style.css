@@ -29,8 +29,28 @@ body {
     gap: 20px;
     padding: 20px;
     width: 100%;
-    max-width: 1200px;
+    max-width: 1400px;
     height: 95vh;
+}
+
+/* --- Left Panel (PGN & History) --- */
+.left-panel {
+    width: 250px;
+    background-color: var(--bg-panel);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    overflow-y: auto;
+}
+
+.panel-section {
+    padding: 15px;
+    border-bottom: 1px solid #404040;
+}
+
+.panel-section:last-child {
+    border-bottom: none;
 }
 
 /* --- Board Area --- */
@@ -52,6 +72,21 @@ body {
     color: var(--text-main);
     font-weight: bold;
     font-size: 0.9rem;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+}
+
+.user-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.move-time {
+    font-size: 0.7rem;
+    color: #888;
+    font-family: 'Courier New', monospace;
 }
 
 .user-icon {
@@ -257,6 +292,14 @@ body {
     justify-content: space-between;
 }
 
+.hint {
+    display: block;
+    font-size: 0.75rem;
+    color: #888;
+    margin-top: 4px;
+    font-style: italic;
+}
+
 .badge {
     background: var(--accent);
     color: white;
@@ -417,4 +460,109 @@ select {
         height: auto;
         font-size: 4vw;
     }
+}
+
+/* Moves Section */
+.moves-section,
+.history-section {
+    padding: 15px;
+    background: #1c1b19;
+    border-bottom: 1px solid #404040;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.section-header h3 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #888;
+    text-transform: uppercase;
+    font-weight: bold;
+}
+
+.btn-icon {
+    background: transparent;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px;
+    opacity: 0.6;
+    transition: 0.2s;
+}
+
+.btn-icon:hover {
+    opacity: 1;
+}
+
+.move-list {
+    background: #111;
+    padding: 10px;
+    border-radius: 4px;
+    min-height: 120px;
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: #ccc;
+    line-height: 1.8;
+    word-wrap: break-word;
+}
+
+.brain-stats-detail {
+    background: #111;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: #aaa;
+    line-height: 1.6;
+}
+
+.brain-stats-detail div {
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #222;
+}
+
+.brain-stats-detail div:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.history-select {
+    width: 100%;
+    background: #111;
+    border: 1px solid #333;
+    color: #ccc;
+    padding: 5px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    font-size: 0.8rem;
+}
+
+.history-select option {
+    padding: 5px;
+}
+
+.btn.small {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+}
+
+.brain-controls {
+    display: flex;
+    justify-content: space-around;
+    padding-top: 10px;
+    border-top: 1px solid #333;
+    margin-top: 10px;
+}
+
+.brain-tag {
+    font-size: 0.7rem;
+    line-height: 1.4;
 }

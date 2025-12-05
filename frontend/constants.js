@@ -6,4 +6,5 @@ export const SYMBOLS = {
     w: { p: '♙', r: '♖', n: '♘', b: '♗', q: '♕', k: '♔', z: '☸' },
     b: { p: '♟', r: '♜', n: '♞', b: '♝', q: '♛', k: '♚', z: '☸' }
 };
-export const WEIGHTS = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000, z: 0 };
+export const WEIGHTS = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 20000, z: 1200 };
+// Krishna (z) = 1200: More valuable than Queen (900) since it can't be captured!

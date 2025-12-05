@@ -90,9 +90,9 @@ export class Game {
         const inCheck = Rules.isKingInCheck(this.board, this.turn);
         const hasMoves = this.hasLegalMoves(this.turn);
 
-        // Repetition Check
+        // Repetition Check (relaxed to 5 to reduce draws)
         const h = this.getHash();
-        if (this.positionHistory[h] >= 3) {
+        if (this.positionHistory[h] >= 5) {
             return { over: true, msg: "Draw by Repetition", winner: null };
         }
 
