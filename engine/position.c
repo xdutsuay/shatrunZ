@@ -4,6 +4,7 @@
 
 #include "types.h"
 #include <stdio.h>
+#include <stdlib.h> // for abs()
 #include <string.h>
 
 // Piece values
@@ -56,6 +57,7 @@ void init_position(Position *pos) {
   pos->side_to_move = WHITE;
   pos->halfmove_clock = 0;
   pos->fullmove_number = 1;
+  pos->castling_rights = 15; // All rights: 1|2|4|8
 }
 
 // Check if square is attacked by given color
@@ -161,6 +163,9 @@ bool is_in_check(const Position *pos, Color color) {
 
 // Make a move
 void make_move(Position *pos, const Move *move) {
+  // Store old rights
+  ((Move *)move)->old_castling_rights = pos->castling_rights;
+
   Piece piece = pos->board[move->from];
   pos->board[move->to] = piece;
   pos->board[move->from] = NO_PIECE;
@@ -169,6 +174,48 @@ void make_move(Position *pos, const Move *move) {
   if (move->is_promotion) {
     pos->board[move->to] = make_piece(pos->side_to_move, move->promotion_type);
   }
+
+  // Handle Castling (King moves 2 squares)
+  if (piece_type(piece) == KING && abs(move->to - move->from) == 2) {
+    int r = square_rank(move->to);
+    bool kingside = (move->to > move->from);
+    // Move Rook
+    Square rook_from = make_square(r, kingside ? 8 : 0);
+    Square rook_to =
+        make_square(r, kingside ? 5 : 3); // G(6) is King, F(5) is Rook? No.
+    // 9x9 Layout:
+    // Index: 0 1 2 3 4 5 6 7 8
+    // Files: A B C D E F G H I
+    // King at E(4). Moves to C(2) [Queenside] or G(6) [Kingside].
+    // Queenside Rook at A(0). Moves to D(3).
+    // Kingside Rook at I(8). Moves to F(5).
+    rook_to = make_square(r, kingside ? 5 : 3); // F or D
+
+    Piece rook = pos->board[rook_from];
+    pos->board[rook_to] = rook;
+    pos->board[rook_from] = NO_PIECE;
+  }
+
+  // Update Castling Rights
+  if (piece_type(piece) == KING) {
+    if (pos->side_to_move == WHITE)
+      pos->castling_rights &= ~3; // Clear WK, WQ
+    else
+      pos->castling_rights &= ~12; // Clear BK, BQ
+  }
+  // Rook moves or is captured (simplified: just check from square)
+  // White Rooks start at 72 (A1), 80 (I1)? Wait, Rank 1 is index 8.
+  // Rank 8 indices: 8*9=72 to 80.
+  // A1=72, I1=80.
+  // Black Rooks: A9=0, I9=8.
+  if (move->from == 72 || move->to == 72)
+    pos->castling_rights &= ~2; // WQ
+  if (move->from == 80 || move->to == 80)
+    pos->castling_rights &= ~1; // WK
+  if (move->from == 0 || move->to == 0)
+    pos->castling_rights &= ~8; // BQ
+  if (move->from == 8 || move->to == 8)
+    pos->castling_rights &= ~4; // BK
 
   // Update game state
   pos->side_to_move = (pos->side_to_move == WHITE) ? BLACK : WHITE;
@@ -189,6 +236,21 @@ void unmake_move(Position *pos, const Move *move) {
 
   pos->board[move->from] = piece;
   pos->board[move->to] = move->captured;
+
+  // Handle Castling (Undo Rook move)
+  if (piece_type(piece) == KING && abs(move->to - move->from) == 2) {
+    int r = square_rank(move->to);
+    bool kingside = (move->to > move->from);
+    Square rook_from = make_square(r, kingside ? 8 : 0);
+    Square rook_to = make_square(r, kingside ? 5 : 3);
+
+    Piece rook = pos->board[rook_to];
+    pos->board[rook_from] = rook;
+    pos->board[rook_to] = NO_PIECE;
+  }
+
+  // Restore Castling Rights
+  pos->castling_rights = move->old_castling_rights;
 
   // Restore game state
   pos->side_to_move = (pos->side_to_move == WHITE) ? BLACK : WHITE;
@@ -330,6 +392,48 @@ int generate_moves(const Position *pos, Move *moves) {
           if (captured == NO_PIECE || (piece_color(captured) == them &&
                                        piece_type(captured) != KRISHNA)) {
             moves[count++] = (Move){from, to, captured, false, NO_PIECE};
+          }
+        }
+      }
+
+      // Castling (King only)
+      if (pt == KING && !is_in_check(pos, us)) {
+        int r_idx = (us == WHITE) ? 8 : 0; // Rank index
+
+        // Kingside (Rights 1/4)
+        if (pos->castling_rights & ((us == WHITE) ? 1 : 4)) {
+          // Path: F(5), G(6) must be empty (Z is at G normally, so this checks
+          // if Z moved) Wait, destination is G(6), path is F(5). King E(4) ->
+          // F(5) -> G(6). Need F(5) and G(6) empty. Also squares E(4), F(5),
+          // G(6) cannot be attacked.
+          if (pos->board[make_square(r_idx, 5)] == NO_PIECE &&
+              pos->board[make_square(r_idx, 6)] == NO_PIECE) {
+            if (!is_square_attacked(pos, make_square(r_idx, 5), them) &&
+                !is_square_attacked(pos, make_square(r_idx, 6), them)) {
+              moves[count++] = (Move){from, make_square(r_idx, 6), NO_PIECE,
+                                      false, NO_PIECE};
+            }
+          }
+        }
+
+        // Queenside (Rights 2/8)
+        if (pos->castling_rights & ((us == WHITE) ? 2 : 8)) {
+          // Path: D(3), C(2), B(1).
+          // King E(4) -> D(3) -> C(2).
+          // Need D(3), C(2), B(1) empty (Rook is at A(0) and jumps to D(3)).
+          // Wait, King lands on C(2).
+          // Path squares: D(3), C(2).
+          // Does B(1) need to be empty? Yes, for Rook at A(0) to move to D(3).
+          // Standard chess: Path between King and Rook must be empty.
+          // Here: Squares 1, 2, 3 must be empty.
+          if (pos->board[make_square(r_idx, 3)] == NO_PIECE &&
+              pos->board[make_square(r_idx, 2)] == NO_PIECE &&
+              pos->board[make_square(r_idx, 1)] == NO_PIECE) {
+            if (!is_square_attacked(pos, make_square(r_idx, 3), them) &&
+                !is_square_attacked(pos, make_square(r_idx, 2), them)) {
+              moves[count++] = (Move){from, make_square(r_idx, 2), NO_PIECE,
+                                      false, NO_PIECE};
+            }
           }
         }
       }

@@ -173,6 +173,7 @@ body {
 
 .piece.krishna {
     color: #ff9800;
+    text-shadow: 0 0 5px #ff9800, 0 0 10px #ff9800;
 }
 
 .coord {

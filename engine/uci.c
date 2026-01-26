@@ -11,6 +11,8 @@
 // Forward declarations
 void init_position(Position *pos);
 Move search(Position *pos, int depth, int randomness);
+int generate_legal_moves(Position *pos, Move *moves);
+void make_move(Position *pos, const Move *move);
 
 // Convert square to algebraic notation (e.g., e2)
 void square_to_str(Square sq, char *str) {
@@ -60,10 +62,52 @@ void uci_loop() {
     } else if (strncmp(line, "position startpos", 17) == 0) {
       init_position(&pos);
 
-      // TODO: Parse moves if present
+      // Parse moves if present
       char *moves_str = strstr(line, "moves");
       if (moves_str) {
-        // Parse and apply moves
+        moves_str += 6; // Skip "moves "
+        char *token = strtok(moves_str, " ");
+        while (token) {
+          // Parse single move
+          Square from = str_to_square(token);   // e.g., "e2" -> square
+          Square to = str_to_square(token + 2); // e.g., "e4" -> square
+          char promo_char = token[4];           // Optional promotion char
+
+          // Find matching legal move to get correct formatting/promotion type
+          Move legal_moves[MAX_MOVES];
+          int count = generate_legal_moves(&pos, legal_moves);
+          bool found = false;
+
+          for (int i = 0; i < count; i++) {
+            if (legal_moves[i].from == from && legal_moves[i].to == to) {
+              // Check promotion
+              if (legal_moves[i].is_promotion) {
+                char p = 'q';
+                if (legal_moves[i].promotion_type == ROOK)
+                  p = 'r';
+                else if (legal_moves[i].promotion_type == BISHOP)
+                  p = 'b';
+                else if (legal_moves[i].promotion_type == KNIGHT)
+                  p = 'n';
+
+                if (promo_char != p)
+                  continue; // Wrong promotion type
+              }
+
+              make_move(&pos, &legal_moves[i]);
+              found = true;
+              break;
+            }
+          }
+
+          if (!found) {
+            // Debug
+            // printf("info string Illegal move: %s (from %d to %d)\n", token,
+            // from, to);
+          }
+
+          token = strtok(NULL, " ");
+        }
       }
     } else if (strncmp(line, "go", 2) == 0) {
       // Parse depth
@@ -113,6 +157,57 @@ void uci_loop() {
       } else {
         printf("bestmove 0000\n"); // No legal moves
       }
+      fflush(stdout);
+    } else if (strcmp(line, "d") == 0) {
+      // Display board
+      printf("\n +---+---+---+---+---+---+---+---+---+\n");
+      for (int r = 0; r < 9; r++) { // Rank 9 down to 1
+        printf("%d|", 9 - r);
+        for (int c = 0; c < 9; c++) {
+          Piece p = pos.board[make_square(r, c)]; // 0,0 is A9 (index 0)
+          char c_char = '.';
+          if (p != NO_PIECE) {
+            PieceType pt = piece_type(p);
+            Color col = piece_color(p);
+            char sym = '?';
+            switch (pt) {
+            case PAWN:
+              sym = 'p';
+              break;
+            case ROOK:
+              sym = 'r';
+              break;
+            case KNIGHT:
+              sym = 'n';
+              break;
+            case BISHOP:
+              sym = 'b';
+              break;
+            case QUEEN:
+              sym = 'q';
+              break;
+            case KING:
+              sym = 'k';
+              break;
+            case KRISHNA:
+              sym = 'z';
+              break;
+            }
+            if (col == WHITE)
+              sym = sym - 32; // Uppercase
+            c_char = sym;
+          }
+          printf(" %c |", c_char);
+        }
+        printf("\n +---+---+---+---+---+---+---+---+---+\n");
+      }
+      printf("  a   b   c   d   e   f   g   h   i\n\n");
+      printf("Side to move: %s\n",
+             pos.side_to_move == WHITE ? "White" : "Black");
+      printf("Castling: %c%c%c%c\n", (pos.castling_rights & 1) ? 'K' : '-',
+             (pos.castling_rights & 2) ? 'Q' : '-',
+             (pos.castling_rights & 4) ? 'k' : '-',
+             (pos.castling_rights & 8) ? 'q' : '-');
       fflush(stdout);
     } else if (strcmp(line, "quit") == 0) {
       break;

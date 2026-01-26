@@ -80,7 +80,7 @@ class ShatrunZEngine:
             if line == 'readyok':
                 break
     
-    def get_best_move(self, fen=None, depth=5):
+    def get_best_move(self, fen=None, depth=5, randomness=0):
         """
         Get best move from current position
         

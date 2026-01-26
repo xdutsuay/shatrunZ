@@ -57,7 +57,29 @@ export class Game {
             // We stored the *original* p type in moveHistory, so undo will work
         }
 
-        // 4. Update Game State
+        // 4. Handle Castling (Rook Move)
+        if (to.isCastling) {
+            const rank = from.r;
+            const isKingside = to.c > from.c;
+            const rookFromCol = isKingside ? 8 : 0;
+            const rookToCol = isKingside ? 5 : 3;
+
+            const rook = this.board[rank][rookFromCol];
+            // Safety check
+            if (rook) {
+                this.board[rank][rookToCol] = rook;
+                this.board[rank][rookFromCol] = null;
+
+                // Add to history
+                this.moveHistory[this.moveHistory.length - 1].castlingRook = {
+                    from: { r: rank, c: rookFromCol },
+                    to: { r: rank, c: rookToCol },
+                    piece: rook
+                };
+            }
+        }
+
+        // 5. Update Game State
         this.turn = this.turn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
 
         // Update Repetition
@@ -78,7 +100,14 @@ export class Game {
         this.board[lastMove.from.r][lastMove.from.c] = lastMove.movedPiece;
         this.board[lastMove.to.r][lastMove.to.c] = lastMove.capturedPiece;
 
-        // 3. Restore Turn & State
+        // 3. Restore Castling Rook
+        if (lastMove.castlingRook) {
+            const { from, to, piece } = lastMove.castlingRook;
+            this.board[from.r][from.c] = piece;
+            this.board[to.r][to.c] = null;
+        }
+
+        // 4. Restore Turn & State
         this.turn = lastMove.prevTurn;
         this.gameOver = false; // If we undo a checkmate, game is on again
 

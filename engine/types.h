@@ -56,6 +56,7 @@ typedef struct {
     Piece captured;
     bool is_promotion;
     PieceType promotion_type;
+    uint8_t old_castling_rights;
 } Move;
 
 // Position structure
@@ -65,6 +66,7 @@ typedef struct {
     int halfmove_clock;
     int fullmove_number;
     uint64_t hash;
+    uint8_t castling_rights; // Bitmask: 1=WK, 2=WQ, 4=BK, 8=BQ
 } Position;
 
 // Piece values (centipawns)
