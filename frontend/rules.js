@@ -3,6 +3,21 @@ import { BOARD_SIZE, COLORS, PIECES } from './constants.js';
 export class Rules {
     static isWithinBounds(r, c) { return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE; }
 
+    static getAllLegalMoves(board, color) {
+        const moves = [];
+        for (let r = 0; r < BOARD_SIZE; r++) {
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                const p = board[r][c];
+                if (!p || p.color !== color) continue;
+                const legals = Rules.getLegalMoves(board, r, c, true);
+                for (const to of legals) {
+                    moves.push({ from: { r, c }, to: to });
+                }
+            }
+        }
+        return moves;
+    }
+
     static getLegalMoves(boardState, r, c, checkKingSafety = true) {
         const piece = boardState[r][c];
         if (!piece) return [];

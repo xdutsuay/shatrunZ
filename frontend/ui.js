@@ -457,6 +457,27 @@ function handleGameEnd(status) {
     pgnManager.endGame(pgnResult);
     updateBrainStats();
     updateGameHistory();
+
+    // Persist completed games to backend (optional; frontend also stores local history).
+    // Non-blocking: don't prevent UI updates if backend is offline.
+    try {
+        const pgn = pgnManager.exportPGN(pgnManager.getGame(0));
+        BackendAPI.saveGame({
+            pgn,
+            white: pgnManager.getGame(0)?.white,
+            black: pgnManager.getGame(0)?.black,
+            result: pgnResult,
+            moves: pgnManager.getGame(0)?.moves || []
+        });
+        BackendAPI.analyzeGame({
+            white: pgnManager.getGame(0)?.white,
+            black: pgnManager.getGame(0)?.black,
+            result: pgnResult,
+            moves: pgnManager.getGame(0)?.moves || []
+        });
+    } catch (_) {
+        // Ignore persistence failures
+    }
 }
 
 // --- Game Control ---
