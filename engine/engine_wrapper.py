@@ -61,8 +61,12 @@ class ShatrunZEngine:
     def send(self, command):
         """Send command to engine"""
         if self.process and self.process.stdin:
-            self.process.stdin.write(command + '\n')
-            self.process.stdin.flush()
+            try:
+                self.process.stdin.write(command + '\n')
+                self.process.stdin.flush()
+            except BrokenPipeError:
+                # Engine already exited; treat as no-op so callers can fallback.
+                return
     
     def get_response(self, timeout=5):
         """Get response from engine"""
@@ -80,12 +84,13 @@ class ShatrunZEngine:
             if line == 'readyok':
                 break
     
-    def get_best_move(self, fen=None, depth=5, randomness=0):
+    def get_best_move(self, fen=None, moves=None, depth=5, randomness=0):
         """
         Get best move from current position
         
         Args:
             fen: FEN string (optional, uses startpos if None)
+            moves: list of UCI moves from startpos (preferred over FEN)
             depth: Search depth
             randomness: Level of randomness to introduce (0-100)
         
@@ -96,7 +101,11 @@ class ShatrunZEngine:
             return None
         
         # Set position
-        if fen:
+        if moves:
+            if isinstance(moves, str):
+                moves = [m for m in moves.split() if m]
+            self.send(f"position startpos moves {' '.join(moves)}")
+        elif fen:
             self.send(f'position fen {fen}')
         else:
             self.send('position startpos')
@@ -116,8 +125,14 @@ class ShatrunZEngine:
     def quit(self):
         """Shutdown engine"""
         if self.process:
-            self.send('quit')
-            self.process.wait(timeout=2)
+            try:
+                self.send('quit')
+            except BrokenPipeError:
+                pass
+            try:
+                self.process.wait(timeout=2)
+            except Exception:
+                pass
     
     def __del__(self):
         """Cleanup on deletion"""

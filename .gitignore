@@ -1,0 +1,15 @@
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Build artifacts
+dist/
+engine/*.o
+
+# Generated knowledge graph
+graphify-out/
+

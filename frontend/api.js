@@ -1,6 +1,8 @@
 // API client for backend communication
-
-const API_BASE = 'http://localhost:8000/api';
+//
+// Important for deployability:
+// - Use a relative base URL so this works on localhost *and* when hosted behind a domain/reverse-proxy.
+const API_BASE = '/api';
 
 export class BackendAPI {
     static async saveGame(gameData) {
@@ -65,12 +67,12 @@ export class BackendAPI {
         }
     }
 
-    static async getEngineMove(fen = null, depth = 5, randomness = 0) {
+    static async getEngineMove(moves = [], depth = 5, randomness = 0, fen = null) {
         try {
             const response = await fetch(`${API_BASE}/engine-move`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fen, depth, randomness })
+                body: JSON.stringify({ moves, depth, randomness, fen })
             });
             return await response.json();
         } catch (error) {

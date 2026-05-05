@@ -192,6 +192,9 @@ void uci_loop() {
             case KRISHNA:
               sym = 'z';
               break;
+            default:
+              sym = '?';
+              break;
             }
             if (col == WHITE)
               sym = sym - 32; // Uppercase

@@ -108,7 +108,7 @@ bool is_square_attacked(const Position *pos, Square sq, Color by_color) {
     }
   }
 
-  // Check king/krishna attacks
+  // Check king attacks (Krishna does not give check)
   for (int i = 0; i < 8; i++) {
     int nr = r + KING_DIRS[i][0];
     int nc = c + KING_DIRS[i][1];
@@ -117,7 +117,7 @@ bool is_square_attacked(const Position *pos, Square sq, Color by_color) {
       Piece p = pos->board[nsq];
       if (p != NO_PIECE && piece_color(p) == by_color) {
         PieceType pt = piece_type(p);
-        if (pt == KING || pt == KRISHNA) {
+        if (pt == KING) {
           return true;
         }
       }
@@ -289,17 +289,18 @@ int generate_moves(const Position *pos, Move *moves) {
           // Generate all promotion moves
           PieceType promos[] = {QUEEN, ROOK, BISHOP, KNIGHT};
           for (int i = 0; i < 4; i++) {
-            moves[count++] = (Move){from, to, NO_PIECE, true, promos[i]};
+            moves[count++] =
+                (Move){from, to, NO_PIECE, true, promos[i], 0};
           }
         } else {
-          moves[count++] = (Move){from, to, NO_PIECE, false, NO_PIECE};
+          moves[count++] = (Move){from, to, NO_PIECE, false, NO_PIECE, 0};
         }
 
         // Double move from start
         if (r == start_rank) {
           to = make_square(r + 2 * dir, c);
           if (pos->board[to] == NO_PIECE) {
-            moves[count++] = (Move){from, to, NO_PIECE, false, NO_PIECE};
+            moves[count++] = (Move){from, to, NO_PIECE, false, NO_PIECE, 0};
           }
         }
       }
@@ -315,10 +316,11 @@ int generate_moves(const Position *pos, Move *moves) {
             if (is_promo) {
               PieceType promos[] = {QUEEN, ROOK, BISHOP, KNIGHT};
               for (int i = 0; i < 4; i++) {
-                moves[count++] = (Move){from, to, captured, true, promos[i]};
+                moves[count++] =
+                    (Move){from, to, captured, true, promos[i], 0};
               }
             } else {
-              moves[count++] = (Move){from, to, captured, false, NO_PIECE};
+              moves[count++] = (Move){from, to, captured, false, NO_PIECE, 0};
             }
           }
         }
@@ -334,7 +336,7 @@ int generate_moves(const Position *pos, Move *moves) {
           Piece captured = pos->board[to];
           if (captured == NO_PIECE || (piece_color(captured) == them &&
                                        piece_type(captured) != KRISHNA)) {
-            moves[count++] = (Move){from, to, captured, false, NO_PIECE};
+            moves[count++] = (Move){from, to, captured, false, NO_PIECE, 0};
           }
         }
       }
@@ -370,18 +372,18 @@ int generate_moves(const Position *pos, Move *moves) {
           Piece captured = pos->board[to];
 
           if (captured == NO_PIECE) {
-            moves[count++] = (Move){from, to, NO_PIECE, false, NO_PIECE};
+            moves[count++] = (Move){from, to, NO_PIECE, false, NO_PIECE, 0};
           } else {
             if (piece_color(captured) == them &&
                 piece_type(captured) != KRISHNA) {
-              moves[count++] = (Move){from, to, captured, false, NO_PIECE};
+              moves[count++] = (Move){from, to, captured, false, NO_PIECE, 0};
             }
             break;
           }
         }
       }
     }
-    // King and Krishna moves (same movement pattern)
+    // King and Krishna moves (same movement pattern; Krishna cannot capture)
     else if (pt == KING || pt == KRISHNA) {
       for (int i = 0; i < 8; i++) {
         int nr = r + KING_DIRS[i][0];
@@ -389,9 +391,16 @@ int generate_moves(const Position *pos, Move *moves) {
         if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE) {
           Square to = make_square(nr, nc);
           Piece captured = pos->board[to];
-          if (captured == NO_PIECE || (piece_color(captured) == them &&
-                                       piece_type(captured) != KRISHNA)) {
-            moves[count++] = (Move){from, to, captured, false, NO_PIECE};
+          if (pt == KRISHNA) {
+            // Krishna is non-capturing: it can only move to empty squares.
+            if (captured == NO_PIECE) {
+              moves[count++] = (Move){from, to, NO_PIECE, false, NO_PIECE, 0};
+            }
+          } else {
+            if (captured == NO_PIECE || (piece_color(captured) == them &&
+                                         piece_type(captured) != KRISHNA)) {
+              moves[count++] = (Move){from, to, captured, false, NO_PIECE, 0};
+            }
           }
         }
       }
@@ -406,12 +415,16 @@ int generate_moves(const Position *pos, Move *moves) {
           // if Z moved) Wait, destination is G(6), path is F(5). King E(4) ->
           // F(5) -> G(6). Need F(5) and G(6) empty. Also squares E(4), F(5),
           // G(6) cannot be attacked.
-          if (pos->board[make_square(r_idx, 5)] == NO_PIECE &&
+          Square rook_sq = make_square(r_idx, 8);
+          Piece rook = pos->board[rook_sq];
+          if (rook != NO_PIECE && piece_color(rook) == us &&
+              piece_type(rook) == ROOK &&
+              pos->board[make_square(r_idx, 5)] == NO_PIECE &&
               pos->board[make_square(r_idx, 6)] == NO_PIECE) {
             if (!is_square_attacked(pos, make_square(r_idx, 5), them) &&
                 !is_square_attacked(pos, make_square(r_idx, 6), them)) {
               moves[count++] = (Move){from, make_square(r_idx, 6), NO_PIECE,
-                                      false, NO_PIECE};
+                                      false, NO_PIECE, 0};
             }
           }
         }
@@ -426,13 +439,17 @@ int generate_moves(const Position *pos, Move *moves) {
           // Does B(1) need to be empty? Yes, for Rook at A(0) to move to D(3).
           // Standard chess: Path between King and Rook must be empty.
           // Here: Squares 1, 2, 3 must be empty.
-          if (pos->board[make_square(r_idx, 3)] == NO_PIECE &&
+          Square rook_sq = make_square(r_idx, 0);
+          Piece rook = pos->board[rook_sq];
+          if (rook != NO_PIECE && piece_color(rook) == us &&
+              piece_type(rook) == ROOK &&
+              pos->board[make_square(r_idx, 3)] == NO_PIECE &&
               pos->board[make_square(r_idx, 2)] == NO_PIECE &&
               pos->board[make_square(r_idx, 1)] == NO_PIECE) {
             if (!is_square_attacked(pos, make_square(r_idx, 3), them) &&
                 !is_square_attacked(pos, make_square(r_idx, 2), them)) {
               moves[count++] = (Move){from, make_square(r_idx, 2), NO_PIECE,
-                                      false, NO_PIECE};
+                                      false, NO_PIECE, 0};
             }
           }
         }

@@ -20,6 +20,7 @@ let autoRunning = false;
 let isTraining = false;
 let selectedSq = null;
 let legalMoves = [];
+let uciMoveHistory = [];
 
 // DOM Elements
 const boardEl = document.getElementById('board');
@@ -70,7 +71,10 @@ function setupEventListeners() {
 
     // Training
     document.getElementById('btn-hyper-train').onclick = hyperTrain;
-    document.getElementById('speed-control').oninput = (e) => { speedMultiplier = parseFloat(e.target.value); };
+    const speedControl = document.getElementById('speed-control');
+    if (speedControl) {
+        speedControl.oninput = (e) => { speedMultiplier = parseFloat(e.target.value); };
+    }
     document.getElementById('cancel-train').onclick = () => {
         isTraining = false;
         autoRunning = false;  // CRITICAL FIX: Also stop auto-running
@@ -126,6 +130,26 @@ function updateOpponentName() {
 function renderBoard() {
     if (isTraining) return;
 
+    // Visual cue: highlight the king if the side to move is in check.
+    let checkKingPos = null;
+    try {
+        if (Rules.isKingInCheck(game.board, game.turn)) {
+            for (let rr = 0; rr < BOARD_SIZE; rr++) {
+                for (let cc = 0; cc < BOARD_SIZE; cc++) {
+                    const pp = game.board[rr][cc];
+                    if (pp && pp.color === game.turn && pp.type === PIECES.KING) {
+                        checkKingPos = { r: rr, c: cc };
+                        break;
+                    }
+                }
+                if (checkKingPos) break;
+            }
+        }
+    } catch (_) {
+        // If rules implementation changes, don't let rendering break.
+        checkKingPos = null;
+    }
+
     boardEl.innerHTML = '';
     for (let r = 0; r < BOARD_SIZE; r++) {
         for (let c = 0; c < BOARD_SIZE; c++) {
@@ -150,6 +174,9 @@ function renderBoard() {
             const lastMove = game.moveHistory[game.moveHistory.length - 1];
             if (lastMove && ((lastMove.from.r === r && lastMove.from.c === c) || (lastMove.to.r === r && lastMove.to.c === c))) {
                 sq.classList.add('last-move');
+            }
+            if (checkKingPos && checkKingPos.r === r && checkKingPos.c === c) {
+                sq.classList.add('in-check');
             }
 
             const isLegal = legalMoves.find(m => m.r === r && m.c === c);
@@ -207,7 +234,11 @@ function executeAndRecordMove(from, to) {
     const piece = game.board[from.r][from.c];
     const captured = game.board[to.r][to.c];
 
+    // Keep a parallel UCI move list for engine sync.
+    // Note: for promotions, JS game auto-promotes to queen; we encode that as "q".
+    const uci = moveToUCI(from, to, piece);
     game.executeMove(from, to);
+    if (uci) uciMoveHistory.push(uci);
 
     const isCheck = Rules.isKingInCheck(game.board, game.turn);
     const status = game.checkStatus();
@@ -269,6 +300,22 @@ function parseUCIMove(uciMove) {
     return move;
 }
 
+function moveToUCI(from, to, movedPiece) {
+    const files = 'abcdefghi';
+    const fromFile = files[from.c];
+    const toFile = files[to.c];
+    const fromRank = 9 - from.r;
+    const toRank = 9 - to.r;
+
+    if (!fromFile || !toFile || fromRank < 1 || fromRank > 9 || toRank < 1 || toRank > 9) return null;
+
+    let promo = '';
+    if (movedPiece && movedPiece.type === PIECES.PAWN && (to.r === 0 || to.r === 8)) {
+        promo = 'q';
+    }
+    return `${fromFile}${fromRank}${toFile}${toRank}${promo}`;
+}
+
 // Get move from C engine or JS AI
 async function getEngineMove() {
     const useCEngineCheckbox = document.getElementById('use-c-engine');
@@ -289,7 +336,7 @@ async function getEngineMove() {
             console.log('📡 Calling C Engine API...');
             const startTime = performance.now();
 
-            const response = await BackendAPI.getEngineMove(null, 5, randomnessLevel); // depth 5, randomness
+            const response = await BackendAPI.getEngineMove(uciMoveHistory, 5, randomnessLevel, null); // startpos moves ..., depth 5
 
             const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
             console.log(`📨 Engine response received in ${elapsed}s:`, response);
@@ -456,6 +503,7 @@ function setMode(mode) {
 function resetGame() {
     autoRunning = false;
     game = new Game();
+    uciMoveHistory = [];
     selectedSq = null;
     legalMoves = [];
 
@@ -475,6 +523,7 @@ function handleUndo() {
 
     if (currentMode === MODES.HVH) {
         if (game.undoLastMove()) {
+            uciMoveHistory.pop();
             selectedSq = null;
             legalMoves = [];
             renderBoard();
@@ -484,6 +533,8 @@ function handleUndo() {
         if (!isAiTurn()) {
             game.undoLastMove();
             game.undoLastMove();
+            uciMoveHistory.pop();
+            uciMoveHistory.pop();
             selectedSq = null;
             legalMoves = [];
             renderBoard();

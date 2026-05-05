@@ -11,6 +11,9 @@ from datetime import datetime
 from pathlib import Path
 import sys
 
+# Version helper
+from backend.version import get_repo_version
+
 # Add engine to path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'engine'))
 from engine_wrapper import ShatrunZEngine
@@ -142,11 +145,18 @@ def engine_move():
     
     try:
         data = request.json
-        fen = data.get('fen')  # Optional FEN string
+        fen = data.get('fen')  # Optional FEN string (fallback only)
+        moves = data.get('moves')  # Optional UCI move list (preferred)
         depth = data.get('depth', 5)
         randomness = data.get('randomness', 0)
+
+        # Accept either list[str] or a single space-delimited string.
+        if isinstance(moves, str):
+            moves = [m for m in moves.split() if m]
+        if moves is not None and not isinstance(moves, list):
+            return jsonify({'success': False, 'error': 'moves must be a list of UCI strings or a space-delimited string'}), 400
         
-        move = engine.get_best_move(fen=fen, depth=depth, randomness=randomness)
+        move = engine.get_best_move(fen=fen, moves=moves, depth=depth, randomness=randomness)
         
         if move:
             return jsonify({'success': True, 'move': move})
@@ -160,6 +170,7 @@ def engine_move():
 def health():
     return jsonify({
         'status': 'ok',
+        'version': get_repo_version(),
         'engine_available': engine is not None,
         'games_count': len(list(GAMES_DIR.glob('game_*.json'))),
         'brains_count': len(list(BRAINS_DIR.glob('brain_*_latest.json')))

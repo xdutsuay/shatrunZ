@@ -12,6 +12,9 @@ int evaluate(const Position *pos);
 int generate_legal_moves(Position *pos, Move *moves);
 void make_move(Position *pos, const Move *move);
 void unmake_move(Position *pos, const Move *move);
+bool is_in_check(const Position *pos, Color color);
+
+static const int MATE_SCORE = 100000;
 
 // Move ordering: captures first, then others
 void order_moves(Move *moves, int count) {
@@ -41,8 +44,12 @@ int alphabeta(Position *pos, int depth, int alpha, int beta) {
 
   // No legal moves - checkmate or stalemate
   if (move_count == 0) {
-    // TODO: Check if in check for checkmate vs stalemate
-    return evaluate(pos);
+    if (is_in_check(pos, pos->side_to_move)) {
+      // Side to move is checkmated: losing score.
+      return -MATE_SCORE + (MAX_PLY - depth);
+    }
+    // Stalemate is a draw.
+    return 0;
   }
 
   // Order moves (captures first)
@@ -70,7 +77,7 @@ Move search(Position *pos, int depth, int randomness) {
   int move_count = generate_legal_moves(pos, moves);
 
   if (move_count == 0) {
-    return (Move){-1, -1, NO_PIECE, false, NO_PIECE};
+    return (Move){-1, -1, NO_PIECE, false, NO_PIECE, 0};
   }
 
   // Order moves

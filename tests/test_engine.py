@@ -31,6 +31,13 @@ class TestEngine(unittest.TestCase):
         # Let's verify it returns a 4-5 char string.
         self.assertTrue(len(move) >= 4)
 
+    def test_startpos_with_moves_does_not_error(self):
+        """Regression: wrapper must support startpos moves ..."""
+        # After 1. e2e4, engine should still return a move string.
+        move = self.engine.get_best_move(moves=["e2e4"], depth=1)
+        self.assertIsNotNone(move)
+        self.assertTrue(len(move) >= 4)
+
     def test_krishna_existence(self):
         """Implicitly verify Krishna by checking if engine plays moves involving it?
         Or just generic ensure no crash."""
