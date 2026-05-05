@@ -1,3 +1,6 @@
 [submodule "engine/third_party/stockfish"]
 	path = engine/third_party/stockfish
 	url = https://github.com/official-stockfish/Stockfish.git
+[submodule "engine/third_party/fairy-stockfish"]
+	path = engine/third_party/fairy-stockfish
+	url = https://github.com/fairy-stockfish/Fairy-Stockfish.git
