@@ -540,15 +540,19 @@ function resetGame() {
 }
 
 function handleUndo() {
-    if (autoRunning || isTraining || game.gameOver) return;
+    if (autoRunning || isTraining) return;
+    // Allow undo even after game end (useful for analysis/review).
+    // If undo succeeds we resume a non-terminal state.
 
     if (currentMode === MODES.HVH) {
         if (game.undoLastMove()) {
             uciMoveHistory.pop();
             selectedSq = null;
             legalMoves = [];
+            game.gameOver = false;
             renderBoard();
             updateStatus();
+            updateMoveList();
         }
     } else if (currentMode === MODES.HVC) {
         if (!isAiTurn()) {
@@ -558,8 +562,10 @@ function handleUndo() {
             uciMoveHistory.pop();
             selectedSq = null;
             legalMoves = [];
+            game.gameOver = false;
             renderBoard();
             updateStatus();
+            updateMoveList();
         }
     }
 }

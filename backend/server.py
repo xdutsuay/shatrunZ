@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 import sys
+import subprocess
 
 # Version helper
 from backend.version import get_repo_version
@@ -24,7 +25,16 @@ CORS(app)  # Enable CORS for browser requests
 # Initialize C Engine
 print("🚀 Initializing C Engine...")
 try:
-    engine = ShatrunZEngine(str(Path(__file__).parent.parent / 'engine' / 'shatrunz_engine'))
+    engine_path = Path(__file__).parent.parent / 'engine' / 'shatrunz_engine'
+    if not engine_path.exists():
+        # Repo sanity: binary is not committed; build it on demand.
+        try:
+            print("🛠️  Engine binary missing; building with make...")
+            subprocess.check_call(["make", "-C", str(engine_path.parent)])
+        except Exception as build_err:
+            raise RuntimeError(f"Failed to build engine: {build_err}") from build_err
+
+    engine = ShatrunZEngine(str(engine_path))
     print("✅ C Engine ready!")
 except Exception as e:
     print(f"⚠️  C Engine failed to load: {e}")

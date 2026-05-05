@@ -17,7 +17,7 @@ export class PGNManager {
             black: black,
             result: "*",
             variant: "9x9 ShatrunZ",
-            fen: "rnbqkbnzr/ppppppppp/9/9/9/9/9/PPPPPPPPP/RNBQKBNZR w - - 0 1",
+            fen: "rnbqkbznr/ppppppppp/9/9/9/9/9/PPPPPPPPP/RNBQKBZNR w - - 0 1",
             moves: [],
             mode: mode
         };
