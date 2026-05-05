@@ -9,6 +9,10 @@ __pycache__/
 # Build artifacts
 dist/
 engine/*.o
+engine/shatrunz_engine
+
+# Runtime data
+data/
 
 # Generated knowledge graph
 graphify-out/

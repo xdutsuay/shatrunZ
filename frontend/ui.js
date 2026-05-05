@@ -467,14 +467,20 @@ function handleGameEnd(status) {
             white: pgnManager.getGame(0)?.white,
             black: pgnManager.getGame(0)?.black,
             result: pgnResult,
-            moves: pgnManager.getGame(0)?.moves || []
+            moves: pgnManager.getGame(0)?.moves || [],
+            uci_moves: [...uciMoveHistory]
         });
         BackendAPI.analyzeGame({
             white: pgnManager.getGame(0)?.white,
             black: pgnManager.getGame(0)?.black,
             result: pgnResult,
-            moves: pgnManager.getGame(0)?.moves || []
+            moves: pgnManager.getGame(0)?.moves || [],
+            uci_moves: [...uciMoveHistory]
         });
+
+        // Persist brains (precious training data) to backend as well.
+        BackendAPI.saveBrain(ai1.brain.exportToJSON());
+        BackendAPI.saveBrain(ai2.brain.exportToJSON());
     } catch (_) {
         // Ignore persistence failures
     }

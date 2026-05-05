@@ -77,6 +77,7 @@ def save_game():
         'black': data.get('black', 'Unknown'),
         'result': data.get('result', '*'),
         'moves': data.get('moves', []),
+        'uci_moves': data.get('uci_moves', []),
         'timestamp': timestamp
     }
     
