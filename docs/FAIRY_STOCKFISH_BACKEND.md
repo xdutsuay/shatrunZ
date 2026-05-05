@@ -23,7 +23,7 @@ We use the repo’s existing external-UCI mechanism:
 
 ```bash
 export UCI_ENGINE_PATH="/absolute/path/to/engine/third_party/fairy-stockfish/src/stockfish"
-export UCI_ENGINE_INIT=$'setoption name VariantPath value /absolute/path/to/engine/variants/shatrunz.ini\nsetoption name UCI_Variant value shatrunz\nisready'
+export UCI_ENGINE_INIT=$'setoption name VariantPath value /absolute/path/to/engine/variants/shatrunz.ini\nsetoption name UCI_Variant value shatrunz'
 python start.py
 ```
 

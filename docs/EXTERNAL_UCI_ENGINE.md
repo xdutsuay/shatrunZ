@@ -15,7 +15,7 @@ Example (Fairy-Stockfish-style):
 
 ```bash
 export UCI_ENGINE_PATH="/path/to/fairy-stockfish"
-export UCI_ENGINE_INIT=$'uci\nsetoption name UCI_Variant value shatrunz\nisready'
+export UCI_ENGINE_INIT=$'setoption name UCI_Variant value shatrunz'
 python start.py
 ```
 

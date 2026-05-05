@@ -8,8 +8,9 @@ import threading
 import queue
 
 class ShatrunZEngine:
-    def __init__(self, engine_path='./engine/shatrunz_engine'):
+    def __init__(self, engine_path='./engine/shatrunz_engine', init_commands=None):
         self.engine_path = engine_path
+        self.init_commands = init_commands or []
         self.process = None
         self.ready = False
         self.output_queue = queue.Queue()
@@ -49,7 +50,15 @@ class ShatrunZEngine:
             print(f"Engine init: {line}")
             if line == 'uciok':
                 break
-        
+
+        # Apply any engine-specific initialization *before* isready.
+        # This is important for variant engines (e.g. Fairy-Stockfish) where
+        # setoption (VariantPath/UCI_Variant) must be set before we start searching.
+        for cmd in self.init_commands:
+            if not cmd:
+                continue
+            self.send(cmd)
+
         self.send('isready')
         while True:
             line = self.get_response()

@@ -35,11 +35,13 @@ if external_uci_path:
     #   setoption name UCI_Variant value shatrunz
     #   isready
     try:
-        engine = ShatrunZEngine(external_uci_path)
         init_script = os.environ.get("UCI_ENGINE_INIT")
+        init_commands = []
         if init_script:
-            for cmd in [c.strip() for c in init_script.splitlines() if c.strip()]:
-                engine.send(cmd)
+            # Do not include 'uci' / 'isready' here; the wrapper handles them.
+            init_commands = [c.strip() for c in init_script.splitlines() if c.strip() and c.strip() not in ("uci", "isready")]
+
+        engine = ShatrunZEngine(external_uci_path, init_commands=init_commands)
         engine_kind = "external_uci"
         print(f"✅ External UCI engine ready: {external_uci_path}")
     except Exception as e:
