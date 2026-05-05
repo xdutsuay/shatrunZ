@@ -439,6 +439,39 @@ body {
     overflow: auto;
 }
 
+.settings {
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.settings-summary {
+    cursor: pointer;
+    list-style: none;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.85);
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    user-select: none;
+}
+
+.settings-summary::-webkit-details-marker {
+    display: none;
+}
+
+.settings[open] .settings-summary {
+    background: rgba(54, 146, 231, 0.10);
+    border-color: rgba(54, 146, 231, 0.35);
+}
+
+.settings > .control-group,
+.settings > .btn,
+.settings > .brain-controls {
+    margin-top: 12px;
+}
+
 .control-group {
     display: flex;
     flex-direction: column;

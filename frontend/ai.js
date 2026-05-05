@@ -352,6 +352,7 @@ export class AIPlayer {
 
         // Check memory for bonuses
         const gameHash = game.getHash();
+        const positionValue = this.brain.getPositionValue(gameHash);
 
         this.lastYieldTime = performance.now();
         this.shouldYield = false;
@@ -375,6 +376,9 @@ export class AIPlayer {
             const moveStr = `${move.from.r}${move.from.c}-${move.to.r}${move.to.c}`;
             const bonus = this.brain.getBonus(gameHash, moveStr);
             score += bonus * 0.5;
+
+            // Add learned position value as a small prior (ML-ish).
+            score += positionValue * 0.2;
 
             if (score > bestScore) {
                 bestScore = score;

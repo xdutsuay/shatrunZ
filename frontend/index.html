@@ -78,36 +78,7 @@
             </div>
 
             <div class="controls-panel">
-                <div class="control-group">
-                    <label>AI Level <span id="ai-level-label" class="badge">3</span></label>
-                    <input id="ai-level" type="range" min="1" max="5" value="3">
-                </div>
-
-                <div class="control-group">
-                    <label>AI Strategy</label>
-                    <select id="ai-strategy">
-                        <option value="material" selected>Material</option>
-                        <option value="positional">Positional</option>
-                        <option value="aggressive">Aggressive</option>
-                    </select>
-                </div>
-
-                <div class="control-group">
-                    <label>
-                        <input type="checkbox" id="use-c-engine" checked>
-                        Use C Engine (100x faster!)
-                    </label>
-                    <small class="hint">Uncheck to use JavaScript AI</small>
-                </div>
-
-                <div class="control-group">
-                    <label>
-                        <input type="checkbox" id="add-randomness">
-                        Add Randomness
-                    </label>
-                    <small class="hint">Prevents repetitive games (adds ±50 to eval)</small>
-                </div>
-
+                <!-- Main controls (keep simple) -->
                 <div class="control-group">
                     <label>Play As</label>
                     <select id="computer-side">
@@ -126,16 +97,51 @@
                     <button id="stop-auto" class="btn danger" disabled>Stop</button>
                 </div>
 
-                <button id="btn-hyper-train" class="btn warning full-width">
-                    ⚡ Hyper-Train (50 Games)
-                </button>
+                <!-- Advanced controls (collapsible) -->
+                <details class="settings">
+                    <summary class="settings-summary">Settings</summary>
 
-                <div class="brain-controls">
-                    <button id="export-brain" class="btn text-only">Export Brain</button>
-                    <button id="import-brain" class="btn text-only">Import Brain</button>
-                    <button id="reset-brain" class="btn text-only">Reset Brain</button>
-                    <input type="file" id="brain-file" accept=".json" style="display:none">
-                </div>
+                    <div class="control-group">
+                        <label>AI Level <span id="ai-level-label" class="badge">3</span></label>
+                        <input id="ai-level" type="range" min="1" max="5" value="3">
+                    </div>
+
+                    <div class="control-group">
+                        <label>AI Strategy</label>
+                        <select id="ai-strategy">
+                            <option value="material" selected>Material</option>
+                            <option value="positional">Positional</option>
+                            <option value="aggressive">Aggressive</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="use-c-engine" checked>
+                            Use Engine (backend UCI)
+                        </label>
+                        <small class="hint">Uses the backend engine if available</small>
+                    </div>
+
+                    <div class="control-group">
+                        <label>
+                            <input type="checkbox" id="add-randomness">
+                            Add Randomness
+                        </label>
+                        <small class="hint">Prevents repetitive games (adds ±50 to eval)</small>
+                    </div>
+
+                    <button id="btn-hyper-train" class="btn warning full-width">
+                        ⚡ Hyper-Train (50 Games)
+                    </button>
+
+                    <div class="brain-controls">
+                        <button id="export-brain" class="btn text-only">Export Brain</button>
+                        <button id="import-brain" class="btn text-only">Import Brain</button>
+                        <button id="reset-brain" class="btn text-only">Reset Brain</button>
+                        <input type="file" id="brain-file" accept=".json" style="display:none">
+                    </div>
+                </details>
             </div>
         </div>
     </div>

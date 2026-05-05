@@ -6,7 +6,10 @@ export class GameBrain {
         this.name = name;
         this.memoryKey = `shatrunz_brain_${name}_v3`;
         this.memory = this.loadMemory();
+        this.valueKey = `shatrunz_value_${name}_v1`;
+        this.values = this.loadValues(); // position hash -> value
         this.history = [];
+        this.positionTrace = []; // position hashes for value learning
         this.stats = this.loadStats();
     }
 
@@ -29,10 +32,20 @@ export class GameBrain {
         }
     }
 
+    loadValues() {
+        try {
+            const data = localStorage.getItem(this.valueKey);
+            return data ? JSON.parse(data) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
     saveMemory() {
         try {
             localStorage.setItem(this.memoryKey, JSON.stringify(this.memory));
             localStorage.setItem(`${this.memoryKey}_stats`, JSON.stringify(this.stats));
+            localStorage.setItem(this.valueKey, JSON.stringify(this.values));
         } catch (e) {
             console.error('Failed to save brain memory:', e);
         }
@@ -40,13 +53,16 @@ export class GameBrain {
 
     clear() {
         this.memory = {};
+        this.values = {};
         this.stats = { wins: 0, losses: 0, draws: 0, games: 0 };
         localStorage.removeItem(this.memoryKey);
         localStorage.removeItem(`${this.memoryKey}_stats`);
+        localStorage.removeItem(this.valueKey);
     }
 
     recordMove(hash, moveStr) {
         this.history.push({ hash, move: moveStr });
+        this.positionTrace.push(hash);
     }
 
     finalizeGame(result) {
@@ -70,8 +86,22 @@ export class GameBrain {
         else if (result === 'loss') this.stats.losses++;
         else this.stats.draws++;
 
+        // --- Simple ML: value learning on position hashes (TD-style, terminal reward) ---
+        // Store a scalar value per position hash and nudge it toward the terminal reward.
+        // This is intentionally tiny + stable; it gives the AI a learned “feel” for positions.
+        const target = reward; // terminal value
+        const alpha = 0.05; // learning rate
+        const maxTrace = 60;
+        const trace = this.positionTrace.slice(-maxTrace);
+        for (let i = 0; i < trace.length; i++) {
+            const h = trace[i];
+            const old = this.values[h] || 0;
+            this.values[h] = old + alpha * (target - old);
+        }
+
         this.saveMemory();
         this.history = [];
+        this.positionTrace = [];
 
         // Note: Auto-export disabled - use manual Export Brain button instead
     }
@@ -83,22 +113,28 @@ export class GameBrain {
         return 0;
     }
 
+    getPositionValue(hash) {
+        return this.values[hash] || 0;
+    }
+
     exportToJSON() {
         return {
             name: this.name,
             memory: this.memory,
+            values: this.values,
             stats: this.stats,
             timestamp: Date.now(),
-            version: 3
+            version: 4
         };
     }
 
     importFromJSON(data) {
-        if (data.version !== 3) {
+        if (data.version !== 3 && data.version !== 4) {
             console.warn('Incompatible brain version');
             return false;
         }
         this.memory = data.memory || {};
+        this.values = data.values || {};
         this.stats = data.stats || { wins: 0, losses: 0, draws: 0, games: 0 };
         this.saveMemory();
         return true;
