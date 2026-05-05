@@ -22,23 +22,49 @@ from engine_wrapper import ShatrunZEngine
 app = Flask(__name__)
 CORS(app)  # Enable CORS for browser requests
 
-# Initialize C Engine
-print("🚀 Initializing C Engine...")
-try:
-    engine_path = Path(__file__).parent.parent / 'engine' / 'shatrunz_engine'
-    if not engine_path.exists():
-        # Repo sanity: binary is not committed; build it on demand.
-        try:
-            print("🛠️  Engine binary missing; building with make...")
-            subprocess.check_call(["make", "-C", str(engine_path.parent)])
-        except Exception as build_err:
-            raise RuntimeError(f"Failed to build engine: {build_err}") from build_err
+# Initialize Engine (default: bundled C engine; optional: external UCI engine)
+print("🚀 Initializing Engine...")
+engine = None
+engine_kind = "none"
 
-    engine = ShatrunZEngine(str(engine_path))
-    print("✅ C Engine ready!")
-except Exception as e:
-    print(f"⚠️  C Engine failed to load: {e}")
-    engine = None
+external_uci_path = os.environ.get("UCI_ENGINE_PATH")
+if external_uci_path:
+    # External UCI engine (recommended for Fairy-Stockfish and other variant engines).
+    # Provide custom init via UCI_ENGINE_INIT (newline-separated commands), e.g.:
+    #   uci
+    #   setoption name UCI_Variant value shatrunz
+    #   isready
+    try:
+        engine = ShatrunZEngine(external_uci_path)
+        init_script = os.environ.get("UCI_ENGINE_INIT")
+        if init_script:
+            for cmd in [c.strip() for c in init_script.splitlines() if c.strip()]:
+                engine.send(cmd)
+        engine_kind = "external_uci"
+        print(f"✅ External UCI engine ready: {external_uci_path}")
+    except Exception as e:
+        print(f"⚠️  External UCI engine failed to load: {e}")
+        engine = None
+        engine_kind = "none"
+else:
+    # Bundled C engine
+    try:
+        engine_path = Path(__file__).parent.parent / 'engine' / 'shatrunz_engine'
+        if not engine_path.exists():
+            # Repo sanity: binary is not committed; build it on demand.
+            try:
+                print("🛠️  Engine binary missing; building with make...")
+                subprocess.check_call(["make", "-C", str(engine_path.parent)])
+            except Exception as build_err:
+                raise RuntimeError(f"Failed to build engine: {build_err}") from build_err
+
+        engine = ShatrunZEngine(str(engine_path))
+        engine_kind = "shatrunz_c"
+        print("✅ C Engine ready!")
+    except Exception as e:
+        print(f"⚠️  C Engine failed to load: {e}")
+        engine = None
+        engine_kind = "none"
 
 # Directories
 BASE_DIR = Path(__file__).parent.parent  # Point to root
@@ -182,6 +208,7 @@ def health():
     return jsonify({
         'status': 'ok',
         'version': get_repo_version(),
+        'engine_kind': engine_kind,
         'engine_available': engine is not None,
         'games_count': len(list(GAMES_DIR.glob('game_*.json'))),
         'brains_count': len(list(BRAINS_DIR.glob('brain_*_latest.json')))
