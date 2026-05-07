@@ -41,6 +41,38 @@ export function initUI() {
     setupEventListeners();
 }
 
+function brainNameFor({ mode, role, strategy }) {
+    // Stable, human-readable key for persistent brains:
+    // - mode: hvh/hvc/cvc/training
+    // - role: p1/p2/solo (or white/black)
+    // - strategy: material/positional/aggressive
+    return `${mode}_${role}_${strategy}`.toLowerCase();
+}
+
+function rebuildBrainsForMode() {
+    // Recreate AI players with deterministic brain names so each UI “context”
+    // learns independently and persists across sessions.
+    const level = parseInt(document.getElementById('ai-level')?.value || '3');
+
+    if (currentMode === MODES.CVC) {
+        // Default AIvAI pairing (can be extended later with two selectors)
+        const s1 = ai1?.strategy?.getName ? ai1.getStrategyName().toLowerCase() : 'material';
+        const s2 = ai2?.strategy?.getName ? ai2.getStrategyName().toLowerCase() : 'positional';
+        ai1 = new AIPlayer(level, s1, brainNameFor({ mode: 'cvc', role: 'white', strategy: s1 }));
+        ai2 = new AIPlayer(level, s2, brainNameFor({ mode: 'cvc', role: 'black', strategy: s2 }));
+        currentAI = ai1;
+        return;
+    }
+
+    // PvAI: brain is tied to chosen strategy (and kept separate from AIvAI brains)
+    const strategy = (document.getElementById('ai-strategy')?.value || 'material').toLowerCase();
+    currentAI = new AIPlayer(level, strategy, brainNameFor({ mode: 'hvc', role: 'solo', strategy }));
+
+    // Keep ai1/ai2 alive for stats display and training, but ensure they have their own brains too
+    ai1 = new AIPlayer(level, 'material', brainNameFor({ mode: 'training', role: 'white', strategy: 'material' }));
+    ai2 = new AIPlayer(level, 'positional', brainNameFor({ mode: 'training', role: 'black', strategy: 'positional' }));
+}
+
 function setupEventListeners() {
     // Mode switching
     document.getElementById('mode-hvh').onclick = () => setMode(MODES.HVH);
@@ -525,6 +557,8 @@ function setMode(mode) {
     }
 
     updateOpponentName();
+    rebuildBrainsForMode();
+    updateBrainStats();
 }
 
 function resetGame() {
@@ -533,6 +567,9 @@ function resetGame() {
     uciMoveHistory = [];
     selectedSq = null;
     legalMoves = [];
+
+    // Ensure brains match current mode/strategy selections.
+    rebuildBrainsForMode();
 
     const whiteName = currentMode === MODES.CVC ? ai1.getStrategyName() + ' AI' : 'White';
     const blackName = currentMode === MODES.CVC ? ai2.getStrategyName() + ' AI' :
@@ -582,12 +619,16 @@ function handleLevelChange(e) {
     currentAI.setLevel(level);
     ai1.setLevel(level);
     ai2.setLevel(level);
+    rebuildBrainsForMode();
+    updateBrainStats();
 }
 
 function handleStrategyChange(e) {
     const strategy = e.target.value;
     currentAI.setStrategy(strategy);
+    rebuildBrainsForMode();
     updateOpponentName();
+    updateBrainStats();
 }
 
 function handleSideChange() {
