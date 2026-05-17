@@ -37,7 +37,10 @@ class ShatrunZEngine:
     def _read_output(self):
         """Read engine output in background thread"""
         while True:
-            line = self.process.stdout.readline()
+            try:
+                line = self.process.stdout.readline()
+            except Exception:
+                break
             if not line:
                 break
             self.output_queue.put(line.strip())
@@ -47,7 +50,6 @@ class ShatrunZEngine:
         self.send('uci')
         while True:
             line = self.get_response()
-            print(f"Engine init: {line}")
             if line == 'uciok':
                 break
 
@@ -64,7 +66,6 @@ class ShatrunZEngine:
             line = self.get_response()
             if line == 'readyok':
                 self.ready = True
-                print("✅ Engine ready!")
                 break
     
     def send(self, command):
@@ -73,7 +74,7 @@ class ShatrunZEngine:
             try:
                 self.process.stdin.write(command + '\n')
                 self.process.stdin.flush()
-            except BrokenPipeError:
+            except (BrokenPipeError, ValueError):
                 # Engine already exited; treat as no-op so callers can fallback.
                 return
     
@@ -133,15 +134,23 @@ class ShatrunZEngine:
     
     def quit(self):
         """Shutdown engine"""
-        if self.process:
+        if not self.process:
+            return
+        try:
+            self.send('quit')
+        except Exception:
+            pass
+        try:
+            self.process.wait(timeout=2)
+        except Exception:
+            pass
+        for stream in (self.process.stdin, self.process.stdout, self.process.stderr):
             try:
-                self.send('quit')
-            except BrokenPipeError:
-                pass
-            try:
-                self.process.wait(timeout=2)
+                if stream:
+                    stream.close()
             except Exception:
                 pass
+        self.process = None
     
     def __del__(self):
         """Cleanup on deletion"""

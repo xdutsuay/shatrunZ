@@ -1,76 +1,81 @@
-import unittest
+import re
 import sys
-import os
 from pathlib import Path
 
-# Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from engine.engine_wrapper import ShatrunZEngine
 
-class TestCastling(unittest.TestCase):
-    def setUp(self):
-        self.engine_path = str(Path(__file__).parent.parent / 'engine' / 'shatrunz_engine')
-        self.engine = ShatrunZEngine(self.engine_path)
 
-    def tearDown(self):
-        # Clean up properly to avoid BrokenPipe errors
-        try:
-            self.engine.quit()
-        except Exception:
-            pass
+def _read_until(engine: ShatrunZEngine, pattern: str, limit: int = 400):
+    rgx = re.compile(pattern)
+    seen = []
+    for _ in range(limit):
+        line = engine.get_response(timeout=2)
+        if not line:
+            continue
+        seen.append(line)
+        if rgx.search(line):
+            return seen
+    raise AssertionError(f"Did not see pattern {pattern!r} in engine output. Last lines: {seen[-20:]}")
 
-    def test_white_kingside_castling(self):
-        print("\nTesting White Kingside Castling...")
-        # 1. Start new game
-        self.engine.new_game()
-        
-        # 2. Clear path for Kingside Castling (White)
-        # White King E1 (76), Target G1 (78). Path: F1 (Bishop), G1 (Krishna).
-        # Move Bishop F1 -> F2 (e.g. f1f2)
-        # Move Krishna G1 -> G2 (e.g. g1g2)
-        # Move Knight H1 -> H2 (e.g. h1h2) to be safe? Krishna is at G1.
-        # Wait, usually for castling e1g1, squares f1 and g1 must be empty.
-        # Start state:
-        # F1: Bishop
-        # G1: Krishna
-        # H1: Knight
-        # I1: Rook
-        # So E1 -> G1 requires F1 and G1 empty.
-        # We need to move Bishop and Krishna out.
-        
+
+def _board_after_d(engine: ShatrunZEngine) -> list[str]:
+    engine.send("d")
+    # Board print starts with the top border line.
+    lines = _read_until(engine, r"^Castling:")
+    return lines
+
+
+def _piece_at_d_output(board_lines: list[str], rank: int, file_char: str) -> str:
+    """
+    Parse the engine 'd' board output.
+
+    Each rank line looks like: `9| r | n | ... |`
+    We extract the character in the file column.
+    """
+    file_map = {c: i for i, c in enumerate("abcdefghi")}
+    col = file_map[file_char]
+    # Find the line starting with f"{rank}|"
+    row = next((ln for ln in board_lines if ln.startswith(f"{rank}|")), None)
+    assert row is not None, f"Rank line {rank}| not found in d-output"
+    # Split on '|' and take the 9 cell segments.
+    parts = row.split("|")
+    # Example: ["1", " R ", " N ", ..., " . ", ""] => 11 parts (rank + 9 + trailing)
+    cells = [p.strip() for p in parts[1:10]]
+    assert len(cells) == 9, f"Expected 9 cells for rank {rank}, got {len(cells)}: {row}"
+    ch = cells[col]
+    assert len(ch) == 1, f"Expected single-char cell at {file_char}{rank}, got {ch!r}"
+    return ch
+
+
+def test_white_kingside_castling_moves_king_and_rook():
+    engine_path = str(Path(__file__).parent.parent / "engine" / "shatrunz_engine")
+    eng = ShatrunZEngine(engine_path)
+    try:
+        eng.new_game()
+
+        # Prepare a position where e1g1 castling should be legal:
+        # clear f1 (bishop) and g1 (krishna) and keep rook at i1.
         moves = [
-            "e2e4", # Pawn clears e2
-            "e8e6", # Black pawn
-            "f1e2", # Bishop to e2 (F1 empty)
-            "d8d6", # Black pawn
-            "g2g4", # Pawn clears g2
-            "c8c6", # Black pawn
-            "g1g2", # Krishna to g2 (G1 empty)
-            "b8b6", # Black pawn
-            "e1g1", # CASTLING!
+            "e2e4",
+            "e8e6",
+            "f1e2",
+            "d8d6",
+            "g2g4",
+            "c8c6",
+            "g1g2",
+            "b8b6",
+            "e1g1",
         ]
-        
-        print("Sending moves including e1g1 castling...")
-        self.engine.send(f"position startpos moves {' '.join(moves)}")
-        
-        # Display board
-        self.engine.send("d")
-        
-        # Read output until "Castling:" line
-        print("\n--- Board State ---")
-        while True:
-            line = self.engine.get_response()
-            if line:
-                print(line)
-                if line.startswith("Castling:"):
-                    break
-        print("-------------------\n")
-        
-        # If e1g1 was illegal, engine would ignore it (due to my uci.c logic? or maybe crash?)
-        # My uci.c logic: checks generated moves. If not found, ignores.
-        # So if e1g1 was ignored, King would still be at E1.
-        # If valid, King would be at G1.
-        # I can inspect the output in the logs.
 
-if __name__ == '__main__':
-    unittest.main()
+        eng.send(f"position startpos moves {' '.join(moves)}")
+        board = _board_after_d(eng)
+
+        # After white castles kingside: King should be on g1, rook on f1.
+        # Engine uses uppercase for White pieces.
+        king_g1 = _piece_at_d_output(board, rank=1, file_char="g")
+        rook_f1 = _piece_at_d_output(board, rank=1, file_char="f")
+        assert king_g1 == "K"
+        assert rook_f1 == "R"
+    finally:
+        eng.quit()
