@@ -156,6 +156,9 @@ pytest -q
 
 ## Quick start when opening this repo
 
-1. Read `COORDINATION.md` → demo section.
-2. Run Plan 1 commits.
-3. Start Phase B (position API).
+**v0.2 milestone complete (2026-05-17).** See `COORDINATION.md` Multi-IDE status + Work Log.
+
+1. `git pull` on `NineBlockMaster` (and `git fetch --tags` after remote push).
+2. Play: `python start.py` → http://localhost:8000
+3. Train + teach: `bash scripts/train_one.sh` → `python tools/review_insights.py ...`
+4. **Next engineering:** push tag `v0.2.0`, browser UI QA (Antigravity), or v0.3 scope (FEN fallback, brain v4 merge path).
