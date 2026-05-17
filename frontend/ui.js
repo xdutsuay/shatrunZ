@@ -4,9 +4,14 @@ import { Rules } from './rules.js';
 import { AIPlayer } from './ai.js';
 import { PGNManager } from './pgn.js';
 import { BackendAPI } from './api.js';
+import {
+    MODES,
+    isAiTurn as isAiTurnFor,
+    shouldBlockHumanInput,
+    shouldTriggerAiMove,
+} from './mode_logic.js';
 
 // --- UI Controller ---
-const MODES = { HVH: 'hvh', HVC: 'hvc', CVC: 'cvc' };
 let currentMode = MODES.HVH;
 let game = new Game();
 
@@ -21,6 +26,10 @@ let isTraining = false;
 let selectedSq = null;
 let legalMoves = [];
 let uciMoveHistory = [];
+
+function computerSideValue() {
+    return document.getElementById('computer-side')?.value || 'black';
+}
 
 // DOM Elements
 const boardEl = document.getElementById('board');
@@ -231,9 +240,16 @@ function renderBoard() {
 
 // --- Interaction ---
 function handleSquareClick(r, c) {
-    if (game.gameOver || autoRunning || isTraining) return;
-    if (currentMode === MODES.CVC) return;
-    if (currentMode === MODES.HVC && isAiTurn()) return;
+    if (shouldBlockHumanInput({
+        mode: currentMode,
+        gameOver: game.gameOver,
+        autoRunning,
+        isTraining,
+        turn: game.turn,
+        computerSideValue: computerSideValue(),
+    })) {
+        return;
+    }
 
     const move = legalMoves.find(m => m.r === r && m.c === c);
     if (move) {
@@ -244,7 +260,17 @@ function handleSquareClick(r, c) {
         updateStatus();
         updateMoveList();
 
-        if (currentMode === MODES.HVC && !game.gameOver) {
+        if (
+            currentMode === MODES.HVC &&
+            !game.gameOver &&
+            shouldTriggerAiMove({
+                mode: currentMode,
+                gameOver: game.gameOver,
+                autoRunning,
+                turn: game.turn,
+                computerSideValue: computerSideValue(),
+            })
+        ) {
             triggerAiMove();
         }
         return;
@@ -280,8 +306,7 @@ function executeAndRecordMove(from, to) {
 }
 
 function isAiTurn() {
-    const aiColor = document.getElementById('computer-side').value === 'white' ? COLORS.WHITE : COLORS.BLACK;
-    return game.turn === aiColor;
+    return isAiTurnFor({ turn: game.turn, computerSideValue: computerSideValue() });
 }
 
 // --- AI Execution ---
@@ -410,8 +435,17 @@ async function getEngineMove() {
 }
 
 async function triggerAiMove() {
-    // CRITICAL FIX: Check if we should even run
-    if (game.gameOver || !autoRunning) return;
+    if (
+        !shouldTriggerAiMove({
+            mode: currentMode,
+            gameOver: game.gameOver,
+            autoRunning,
+            turn: game.turn,
+            computerSideValue: computerSideValue(),
+        })
+    ) {
+        return;
+    }
 
     thinkEl.innerText = 'Thinking...';
     await new Promise(r => setTimeout(r, 50));
@@ -632,7 +666,17 @@ function handleStrategyChange(e) {
 }
 
 function handleSideChange() {
-    if (currentMode === MODES.HVC && isAiTurn() && !game.gameOver) {
+    if (
+        autoRunning &&
+        !game.gameOver &&
+        shouldTriggerAiMove({
+            mode: currentMode,
+            gameOver: game.gameOver,
+            autoRunning,
+            turn: game.turn,
+            computerSideValue: computerSideValue(),
+        })
+    ) {
         triggerAiMove();
     }
 }
@@ -641,6 +685,7 @@ function startAuto() {
     autoRunning = true;
     document.getElementById('start-auto').disabled = true;
     document.getElementById('stop-auto').disabled = false;
+
     triggerAiMove();
 }
 
