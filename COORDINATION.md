@@ -87,6 +87,39 @@ source .venv/bin/activate
 pytest -q
 ```
 
+### Run local frontend regression tests (optional, not in CI)
+```bash
+npm test
+```
+
+### Semi-supervised learning (CLI yes/no, does not slow self-play)
+
+Fast engine self-play stays in `tools/selfplay.py` (writes `games.jsonl`). Human feedback is **offline**: generate prompts, answer y/n when you have time, merge into a brain JSON the UI can import.
+
+1. **Emit pending insights** (replays games with browser `Game` + `Rules`; default `--mode annotate` works for draw-heavy runs):
+   ```bash
+   node tools/js/emit_insights.mjs --games-jsonl data/selfplay/run_YYYYMMDD_HHMMSS/games.jsonl --out data/insights/pending_insights.ndjson --max-insights 200 --opening-depth 12
+   ```
+   Use `--mode decisive` to only ask about opening moves in games where one side lost (`1-0` / `0-1`).
+
+2. **Review** (interactive):
+   ```bash
+   python tools/review_insights.py --pending data/insights/pending_insights.ndjson --approved data/insights/approved_labels.ndjson
+   ```
+   - `y` = bad for side to move (penalize `memory[hash][move]` on merge)
+   - `n` = not bad (small positive bump)
+   - `s` = skip, `q` = quit
+
+3. **Merge** into an exported brain (from UI **Export brain** or `brain_*.json`):
+   ```bash
+   python tools/merge_feedback_into_brain.py --brain path/to/brain.json --labels data/insights/approved_labels.ndjson --out path/to/brain_merged.json
+   ```
+   Optional: `--also-values` to nudge TD `values[hash]` slightly; `--in-place` overwrites the input (creates `.bak`).
+
+4. **Import** `brain_merged.json` in the web UI (Import brain).
+
+Optional slow lane (documentation only): `python tools/supervised_selfplay.py`
+
 ### Package a release tarball
 ```bash
 bash scripts/package_release.sh
@@ -95,9 +128,37 @@ ls -la dist/
 
 ---
 
+## Self-play strength testing (offline)
+
+This repo now includes an **offline self-play runner** that can generate thousands of engine-vs-engine games, track a simple online Elo estimate, and produce a local HTML report.
+
+### One command: train + build insight queue
+Runs self-play, then fills `data/insights/pending_insights.ndjson` (defaults: 2000 games if you pass no args).
+```bash
+bash scripts/train_one.sh
+bash scripts/train_one.sh --games 25000 --max-plies 220
+```
+
+### Run a small smoke test
+```bash
+bash scripts/run_selfplay.sh --games 50 --max-plies 220
+```
+
+### Run a full strength run (~25k games)
+```bash
+bash scripts/run_selfplay.sh --games 25000 --max-plies 220
+```
+
+### Outputs
+- `data/selfplay/run_*/games.jsonl`: one JSON object per game (UCI move list + result + pairing info)
+- `data/selfplay/run_*/summary.json`: aggregate results + current Elo
+- `data/selfplay/run_*/report.html`: open in a browser to see Elo curves
+
+---
+
 ## Known issues / follow-ups (optional)
 - **Pytest warnings (BrokenPipe)**: Some older existing tests create/kill engine processes in a way that triggers `BrokenPipeError` warnings during teardown. Functionality is fine; consider cleaning up those tests later for a quieter test run.
-- **Engine position API**: The plan mentioned standardizing a position format (FEN-like / JSON) so frontend can request moves for *current board*, not just `startpos`. This is not implemented yet. Today the frontend calls the engine without providing a position.
+- **Engine position API**: The UI sends `uciMoveHistory` (UCI from startpos) on each engine request. See `docs/position_api.md`. FEN fallback is optional and not required when the move list matches the board.
 - **Game record standardization**: Backend stores PGN + metadata and queues analysis; could be tightened to ensure inspector inputs match saved metadata exactly.
 
 ---

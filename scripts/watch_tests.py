@@ -7,7 +7,7 @@ import time
 from pathlib import Path
 
 
-WATCH_DIRS = ["frontend", "backend", "engine", "tests"]
+WATCH_DIRS = ["frontend", "backend", "engine", "tests", "tests-js"]
 WATCH_EXTS = {".py", ".js", ".c", ".h", ".css", ".html", ".md"}
 
 
@@ -43,7 +43,11 @@ def changed(prev: dict[Path, float], curr: dict[Path, float]) -> bool:
 def run_tests(root: Path) -> int:
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
-    cmd = ["bash", "-lc", "source .venv/bin/activate >/dev/null 2>&1 || true; pytest -q"]
+    # Opt-in frontend tests (Node) to keep the default workflow Python-only.
+    extra = ""
+    if env.get("RUN_FRONTEND_TESTS") == "1":
+        extra = " && npm test --silent"
+    cmd = ["bash", "-lc", f"source .venv/bin/activate >/dev/null 2>&1 || true; pytest -q{extra}"]
     print("\n=== Running tests ===")
     return subprocess.call(cmd, cwd=str(root), env=env)
 
