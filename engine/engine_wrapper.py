@@ -94,6 +94,25 @@ class ShatrunZEngine:
             if line == 'readyok':
                 break
     
+    def get_legal_moves(self, moves=None):
+        """Return sorted UCI legal moves from startpos + optional move list."""
+        if not self.ready:
+            return []
+        if moves:
+            if isinstance(moves, str):
+                moves = [m for m in moves.split() if m]
+            self.send(f"position startpos moves {' '.join(moves)}")
+        else:
+            self.send('position startpos')
+        self.send('legal')
+        while True:
+            line = self.get_response(timeout=10)
+            if not line:
+                return []
+            if line.startswith('legalmoves'):
+                parts = line.split()
+                return sorted(parts[1:]) if len(parts) > 1 else []
+
     def get_best_move(self, fen=None, moves=None, depth=5, randomness=0):
         """
         Get best move from current position

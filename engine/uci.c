@@ -109,6 +109,36 @@ void uci_loop() {
           token = strtok(NULL, " ");
         }
       }
+    } else if (strcmp(line, "legal") == 0) {
+      Move legal_moves[MAX_MOVES];
+      int count = generate_legal_moves(&pos, legal_moves);
+      printf("legalmoves");
+      for (int i = 0; i < count; i++) {
+        char from_str[4], to_str[4];
+        square_to_str(legal_moves[i].from, from_str);
+        square_to_str(legal_moves[i].to, to_str);
+        if (legal_moves[i].is_promotion) {
+          char promo_char = 'q';
+          switch (legal_moves[i].promotion_type) {
+          case ROOK:
+            promo_char = 'r';
+            break;
+          case BISHOP:
+            promo_char = 'b';
+            break;
+          case KNIGHT:
+            promo_char = 'n';
+            break;
+          default:
+            break;
+          }
+          printf(" %s%s%c", from_str, to_str, promo_char);
+        } else {
+          printf(" %s%s", from_str, to_str);
+        }
+      }
+      printf("\n");
+      fflush(stdout);
     } else if (strncmp(line, "go", 2) == 0) {
       // Parse depth
       int depth = 5; // Default depth
