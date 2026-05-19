@@ -136,7 +136,7 @@ Games are recorded in standard PGN format:
 
 ## 🐛 Known Limitations
 
-1. **No Castling/En Passant**: Not implemented (future enhancement)
+1. **En passant**: Not implemented. **Castling** is implemented in both JS (`frontend/rules.js`) and C (`engine/position.c`); JS is the rules-of-record if engines disagree (see `docs/engine_roles.md`).
 2. **PGN Replay**: Can view but not replay moves on board yet
 3. **50-move Rule**: Not enforced
 4. **Storage Limit**: localStorage has ~5-10MB limit per domain

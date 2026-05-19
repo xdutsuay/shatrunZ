@@ -161,4 +161,26 @@ pytest -q
 1. `git pull` on `NineBlockMaster` (and `git fetch --tags` after remote push).
 2. Play: `python start.py` → http://localhost:8000
 3. Train + teach: `bash scripts/train_one.sh` → `python tools/review_insights.py ...`
-4. **Next engineering:** push tag `v0.2.0`, browser UI QA (Antigravity), or v0.3 scope (FEN fallback, brain v4 merge path).
+4. **Next engineering:** undo/help-signal/ML pipeline landed — run `ml/train.py` + `ml/eval.py` after self-play; push tag `v0.2.0` if not on remote.
+
+### v0.3 additions (2026-05-19) — help UX, phases, 10-min train
+
+| Area | Command / file |
+|------|----------------|
+| Help message | "White/Black is asking for help" — [`help_signal.js`](frontend/shared/help_signal.js) |
+| Human-help in PGN | `[HelpMoves]` tag — export/import; move list summary |
+| Game phases | [`game_phase.js`](frontend/shared/game_phase.js), [`docs/game_phases.md`](docs/game_phases.md) |
+| 10-min train cycle | `bash scripts/train_10min.sh` → `models/train_report_*.json` |
+| Krishna research | [`docs/krishna_research.md`](docs/krishna_research.md) |
+| Policy net (JS) | Settings → "Use policy net"; needs `pip install -r requirements-ml.txt` + train |
+
+### v0.3 additions (2026-05-19) — core stability (prior)
+
+| Area | Command / file |
+|------|----------------|
+| Undo + PGN replay | `npm test` — `tests-js/undo.test.js`, `pgn_roundtrip.test.js`, `replay_step.test.js` |
+| AI asks for help | Settings → enable help + auto-pause; `frontend/shared/help_signal.js` |
+| Engine parity | `pytest tests/test_engine_parity.py` (shallow ≤12 plies) |
+| Parallel self-play | `python tools/selfplay.py --games 100 --workers 4` |
+| ML policy net | `pip install -r requirements-ml.txt` then `python ml/train.py --games-jsonl ...` |
+| ML metrics | `GET /api/ml/metrics` or Settings panel on play page |

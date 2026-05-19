@@ -52,6 +52,29 @@ This file is the shared handoff for continuing work on `shatrunZ` with limited C
 
 ### Work Log
 
+#### 2026-05-18 — Cursor (nvidia_worker smoke test)
+- Local `nvidia_worker/` gitignored; run `bash scripts/nvidia_next_step.sh` (uses `.venv`, key from Cursor/NVIDIA_API_KEY)
+- Test output: **Push tag v0.2.0 to origin.** (458 tok, llama-3.1-8b-instruct)
+
+#### 2026-05-19 — Cursor (help UX, PGN help, phases, train_10min)
+- Help status: "White/Black is asking for help" (reason as subtitle)
+- PGN `[HelpMoves]` for human-assisted plies; phase detector + opening/endgame hooks
+- `scripts/train_10min.sh`, `tools/krishna_stats.py`, JS policy-hint API
+- Tests: npm 35 passed; pytest 22 passed
+
+#### 2026-05-19 — Cursor (stabilize core + ML + parity)
+- Undo: PvP/PvAI/AIvAI + `GameSession.undoLastPly` syncs PGN/brain
+- PGN: import + `[UciMoves]` tag + step replay controls
+- Help: composite auto-pause signal (`help_signal.js`)
+- Engine: C `legal` UCI command + `tests/test_engine_parity.py`
+- Self-play: `--workers` ProcessPoolExecutor
+- ML: `ml/` package, `/api/ml/metrics`, Settings panel
+- Tests: `npm test` 29+; `pytest` expanded
+
+#### 2026-05-18 — Cursor (frontend refactor)
+- Scope: PvP/PvAI/AIvAI mode modules, AIvAI persona dropdowns, Help AI, brain finalize, history in Settings, template move explainer
+- Tests: `npm test` 15 passed; `pytest -q` 11 passed (venv)
+
 #### 2026-05-17 — Cursor (leader)
 - Scope: v0.2 implementation session (4 commits on `NineBlockMaster`)
 - Done: learning pipeline, `mode_logic.js` + UI gating, engine/contracts, docs

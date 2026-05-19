@@ -14,6 +14,19 @@ engine/shatrunz_engine
 # Runtime data
 data/
 
+# Trained ML artifacts (metrics JSON is tracked)
+models/*.pt
+models/*.onnx
+
 # Generated knowledge graph
 graphify-out/
+
+# Local NVIDIA API worker (API key via Cursor Settings; not part of repo)
+nvidia_worker/
+
+# Local / IDE
+.cursor/
+.venv-regression/
+models/train_report_*.json
+models/train_report_*.md
 
