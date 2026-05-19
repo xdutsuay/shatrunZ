@@ -1,37 +1,38 @@
-import { BOARD_SIZE, FILES, COLORS, PIECES, SYMBOLS } from './constants.js';
-import { Game } from './game.js';
+import { COLORS } from './constants.js';
 import { Rules } from './rules.js';
 import { AIPlayer } from './ai.js';
 import { PGNManager } from './pgn.js';
-import { BackendAPI } from './api.js';
-import {
-    MODES,
-    isAiTurn as isAiTurnFor,
-    shouldBlockHumanInput,
-    shouldTriggerAiMove,
-} from './mode_logic.js';
+import { MODES, isAiTurn as isAiTurnFor } from './mode_logic.js';
+import { GameSession } from './shared/game_session.js';
+import { BoardView } from './shared/board_view.js';
+import { brainNameFor } from './shared/brain_utils.js';
+import { replayGameFromUci } from './shared/replay.js';
+import { ReplayStepController } from './shared/replay_step.js';
+import { explainMove } from './shared/move_explainer.js';
+import { loadPolicyMetrics, formatMetricsPanel } from './shared/policy_net.js';
+import { setHelpStatusText } from './shared/help_signal.js';
+import { PvpModeController } from './modes/pvp.js';
+import { PvaiModeController } from './modes/pvai.js';
+import { AivaiModeController, strategyFromSelect } from './modes/aivai.js';
 
-// --- UI Controller ---
+const HELP_KEY = 'shatrunz_enable_ai_help';
+const AUTO_HELP_KEY = 'shatrunz_ai_auto_help';
+const EXPLAIN_KEY = 'shatrunz_enable_move_explain';
+const POLICY_KEY = 'shatrunz_use_policy_net';
+
 let currentMode = MODES.HVH;
-let game = new Game();
+let modeController;
 
-// Dual AI system for AIvAI
 let ai1 = new AIPlayer(3, 'material', 'material_ai');
 let ai2 = new AIPlayer(3, 'positional', 'positional_ai');
-let currentAI = ai1; // For PvAI mode
+let currentAI = ai1;
 
 let pgnManager = new PGNManager();
-let autoRunning = false;
 let isTraining = false;
 let selectedSq = null;
 let legalMoves = [];
-let uciMoveHistory = [];
+let replayController = null;
 
-function computerSideValue() {
-    return document.getElementById('computer-side')?.value || 'black';
-}
-
-// DOM Elements
 const boardEl = document.getElementById('board');
 const statusEl = document.getElementById('status');
 const scoreEl = document.getElementById('scoreboard');
@@ -40,90 +41,349 @@ const thinkEl = document.getElementById('thinking-indicator');
 const moveListEl = document.getElementById('move-list');
 const opponentNameEl = document.getElementById('opponent-name');
 const playerNameEl = document.getElementById('player-name');
+const moveExplainEl = document.getElementById('move-explanation');
 
-// --- Initialization ---
-export function initUI() {
-    renderBoard();
+function computerSideValue() {
+    return document.getElementById('computer-side')?.value || 'black';
+}
+
+function isAiTurn() {
+    return isAiTurnFor({ turn: getGame().turn, computerSideValue: computerSideValue() });
+}
+
+function getGame() {
+    return session.game;
+}
+
+let session = new GameSession({
+    pgnManager,
+    getMode: () => currentMode,
+    getAiState: () => ({ ai1, ai2, currentAI }),
+    isAiTurnFn: isAiTurn,
+});
+
+const ctx = {
+    get game() { return session.game; },
+    ai1,
+    ai2,
+    currentAI,
+    pgnManager,
+    session,
+    get isTraining() { return isTraining; },
+    statusEl,
+    thinkEl,
+    Rules,
+    getSelection: () => ({ selectedSq, legalMoves }),
+    setSelection: (sq, moves) => {
+        selectedSq = sq;
+        legalMoves = moves;
+    },
+    clearSelection: () => {
+        selectedSq = null;
+        legalMoves = [];
+    },
+    boardView: null,
+    refreshUi: () => {
+        updateStatus();
+        updateMoveList();
+        updateBrainStats();
+        syncHelpButton();
+    },
+    updateOpponentName,
+    updateModePanels,
+    rebuildAivaiPlayers,
+    rebuildPvaiPlayer,
+    rebuildTrainingPlayers,
+    syncAutoButtons,
+    syncHelpButton,
+    onGameEnd: handleGameEnd,
+    updateMoveTime,
+    maybeExplainMove,
+};
+
+const boardView = new BoardView({
+    boardEl,
+    getGame,
+    getSelection: () => ({ selectedSq, legalMoves }),
+    onSquareClick: (r, c) => {
+        if (modeController.onSquareClick(r, c)) return;
+        if (modeController.shouldBlockInput()) return;
+
+        const game = getGame();
+        const move = legalMoves.find(m => m.r === r && m.c === c);
+        if (move && selectedSq) {
+            session.executeAndRecordMove(selectedSq, move);
+            clearSelectionLocal();
+            boardView.render();
+            refreshUiLocal();
+            return;
+        }
+
+        const p = game.board[r][c];
+        if (p && p.color === game.turn) {
+            selectedSq = { r, c };
+            legalMoves = Rules.getLegalMoves(game.board, r, c);
+            boardView.render();
+        } else {
+            clearSelectionLocal();
+            boardView.render();
+        }
+    },
+    isTraining: () => isTraining,
+});
+
+ctx.boardView = boardView;
+
+function clearSelectionLocal() {
+    selectedSq = null;
+    legalMoves = [];
+}
+
+function refreshUiLocal() {
     updateStatus();
-    updateBrainStats();
     updateMoveList();
-    setupEventListeners();
+    updateBrainStats();
+    syncHelpButton();
 }
 
-function brainNameFor({ mode, role, strategy }) {
-    // Stable, human-readable key for persistent brains:
-    // - mode: hvh/hvc/cvc/training
-    // - role: p1/p2/solo (or white/black)
-    // - strategy: material/positional/aggressive
-    return `${mode}_${role}_${strategy}`.toLowerCase();
+Object.assign(ctx, {
+    clearSelection: clearSelectionLocal,
+    refreshUi: refreshUiLocal,
+});
+
+modeController = new PvpModeController(ctx);
+modeController.ctx = ctx;
+
+function aiLevel() {
+    return parseInt(document.getElementById('ai-level')?.value || '3', 10);
 }
 
-function rebuildBrainsForMode() {
-    // Recreate AI players with deterministic brain names so each UI “context”
-    // learns independently and persists across sessions.
-    const level = parseInt(document.getElementById('ai-level')?.value || '3');
+function rebuildAivaiPlayers() {
+    const level = aiLevel();
+    const s1 = strategyFromSelect('white');
+    const s2 = strategyFromSelect('black');
+    ai1 = new AIPlayer(level, s1, brainNameFor({ mode: 'cvc', role: 'white', strategy: s1 }));
+    ai2 = new AIPlayer(level, s2, brainNameFor({ mode: 'cvc', role: 'black', strategy: s2 }));
+    currentAI = ai1;
+    syncAiRefs();
+}
 
-    if (currentMode === MODES.CVC) {
-        // Default AIvAI pairing (can be extended later with two selectors)
-        const s1 = ai1?.strategy?.getName ? ai1.getStrategyName().toLowerCase() : 'material';
-        const s2 = ai2?.strategy?.getName ? ai2.getStrategyName().toLowerCase() : 'positional';
-        ai1 = new AIPlayer(level, s1, brainNameFor({ mode: 'cvc', role: 'white', strategy: s1 }));
-        ai2 = new AIPlayer(level, s2, brainNameFor({ mode: 'cvc', role: 'black', strategy: s2 }));
-        currentAI = ai1;
+function rebuildPvaiPlayer() {
+    const level = aiLevel();
+    const strategy = (document.getElementById('ai-strategy')?.value || 'material').toLowerCase();
+    currentAI = new AIPlayer(level, strategy, brainNameFor({ mode: 'hvc', role: 'solo', strategy }));
+    rebuildTrainingPlayers();
+    syncAiRefs();
+}
+
+function rebuildTrainingPlayers() {
+    const level = aiLevel();
+    ai1 = new AIPlayer(level, 'material', brainNameFor({ mode: 'training', role: 'white', strategy: 'material' }));
+    ai2 = new AIPlayer(level, 'positional', brainNameFor({ mode: 'training', role: 'black', strategy: 'positional' }));
+    syncAiRefs();
+}
+
+function syncAiRefs() {
+    ctx.ai1 = ai1;
+    ctx.ai2 = ai2;
+    ctx.currentAI = currentAI;
+}
+
+ctx.rebuildAivaiPlayers = rebuildAivaiPlayers;
+ctx.rebuildPvaiPlayer = rebuildPvaiPlayer;
+ctx.rebuildTrainingPlayers = rebuildTrainingPlayers;
+
+function updateModePanels() {
+    const pvaiOnly = document.getElementById('pvai-only-controls');
+    const aivaiOnly = document.getElementById('aivai-only-controls');
+    const playAs = document.getElementById('play-as-group');
+    if (pvaiOnly) pvaiOnly.style.display = currentMode === MODES.HVC ? '' : 'none';
+    if (aivaiOnly) aivaiOnly.style.display = currentMode === MODES.CVC ? '' : 'none';
+    if (playAs) playAs.style.display = currentMode === MODES.HVC ? '' : 'none';
+}
+
+function isHelpEnabled() {
+    const el = document.getElementById('enable-ai-help');
+    if (el) return el.checked;
+    return localStorage.getItem(HELP_KEY) === '1';
+}
+
+function isExplainEnabled() {
+    const el = document.getElementById('enable-move-explain');
+    if (el) return el.checked;
+    return localStorage.getItem(EXPLAIN_KEY) === '1';
+}
+
+function syncHelpButton() {
+    const btn = document.getElementById('btn-help-ai');
+    if (!btn) return;
+    const enabled = isHelpEnabled();
+    const aiMode = currentMode === MODES.HVC || currentMode === MODES.CVC;
+    btn.style.display = enabled && aiMode ? '' : 'none';
+    btn.disabled = !aiMode || getGame().gameOver;
+}
+
+function syncAutoButtons() {
+    const mc = modeController;
+    const startAutoBtn = document.getElementById('start-auto');
+    const stopAutoBtn = document.getElementById('stop-auto');
+    if (!startAutoBtn || !stopAutoBtn) return;
+
+    if (currentMode === MODES.HVH) {
+        startAutoBtn.style.display = 'none';
+        stopAutoBtn.style.display = 'none';
         return;
     }
 
-    // PvAI: brain is tied to chosen strategy (and kept separate from AIvAI brains)
-    const strategy = (document.getElementById('ai-strategy')?.value || 'material').toLowerCase();
-    currentAI = new AIPlayer(level, strategy, brainNameFor({ mode: 'hvc', role: 'solo', strategy }));
+    startAutoBtn.style.display = '';
+    stopAutoBtn.style.display = '';
+    startAutoBtn.disabled = mc.autoRunning;
+    stopAutoBtn.disabled = !mc.autoRunning;
+}
 
-    // Keep ai1/ai2 alive for stats display and training, but ensure they have their own brains too
-    ai1 = new AIPlayer(level, 'material', brainNameFor({ mode: 'training', role: 'white', strategy: 'material' }));
-    ai2 = new AIPlayer(level, 'positional', brainNameFor({ mode: 'training', role: 'black', strategy: 'positional' }));
+ctx.syncAutoButtons = syncAutoButtons;
+ctx.syncHelpButton = syncHelpButton;
+ctx.updateModePanels = updateModePanels;
+
+async function refreshMlMetrics() {
+    const el = document.getElementById('ml-metrics-panel');
+    if (!el) return;
+    const metrics = await loadPolicyMetrics();
+    el.textContent = formatMetricsPanel(metrics);
+}
+
+export function initUI(initialMode = MODES.HVH) {
+    const helpEl = document.getElementById('enable-ai-help');
+    if (helpEl) helpEl.checked = localStorage.getItem(HELP_KEY) === '1';
+    const autoHelpEl = document.getElementById('enable-ai-auto-help');
+    if (autoHelpEl) autoHelpEl.checked = localStorage.getItem(AUTO_HELP_KEY) === '1';
+    const sig = (id, key, def = true) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const v = localStorage.getItem(key);
+        el.checked = v === null ? def : v === '1';
+    };
+    sig('help-signal-eval', 'shatrunz_help_eval_swing');
+    sig('help-signal-margin', 'shatrunz_help_low_margin');
+    sig('help-signal-unknown', 'shatrunz_help_unknown');
+    sig('help-signal-repeat', 'shatrunz_help_repeat');
+    const explainEl = document.getElementById('enable-move-explain');
+    if (explainEl) explainEl.checked = localStorage.getItem(EXPLAIN_KEY) === '1';
+    const policyEl = document.getElementById('use-policy-net');
+    if (policyEl) policyEl.checked = localStorage.getItem(POLICY_KEY) === '1';
+
+    setupEventListeners();
+    highlightModeNav(initialMode);
+    setMode(initialMode);
+    updateGameHistory();
+    refreshMlMetrics();
+}
+
+function setModeControllers(mode) {
+    modeController.onLeave();
+    if (mode === MODES.HVH) modeController = new PvpModeController(ctx);
+    else if (mode === MODES.HVC) modeController = new PvaiModeController(ctx);
+    else modeController = new AivaiModeController(ctx);
+    modeController.ctx = ctx;
+}
+
+function highlightModeNav(mode) {
+    document.querySelectorAll('.mode-nav-link[data-mode]').forEach((link) => {
+        link.classList.toggle('active', link.dataset.mode === mode);
+    });
 }
 
 function setupEventListeners() {
-    // Mode switching
-    document.getElementById('mode-hvh').onclick = () => setMode(MODES.HVH);
-    document.getElementById('mode-hvc').onclick = () => setMode(MODES.HVC);
-    document.getElementById('mode-cvc').onclick = () => setMode(MODES.CVC);
-
-    // Game controls
-    document.getElementById('btn-undo').onclick = handleUndo;
+    document.getElementById('btn-undo').onclick = () => modeController.onUndo();
     document.getElementById('reset-game').onclick = resetGame;
 
-    // AI controls
     document.getElementById('ai-level').oninput = handleLevelChange;
-    document.getElementById('ai-strategy').onchange = handleStrategyChange;
-    document.getElementById('computer-side').onchange = handleSideChange;
-    document.getElementById('start-auto').onclick = startAuto;
-    document.getElementById('stop-auto').onclick = stopAuto;
+    document.getElementById('ai-strategy').onchange = () => {
+        if (currentMode === MODES.HVC) {
+            rebuildPvaiPlayer();
+            updateOpponentName();
+            refreshUiLocal();
+        }
+    };
+    document.getElementById('white-ai-strategy')?.addEventListener('change', onAivaiStrategyChange);
+    document.getElementById('black-ai-strategy')?.addEventListener('change', onAivaiStrategyChange);
+    document.getElementById('computer-side').onchange = () => {
+        if (modeController.autoRunning && !getGame().gameOver && currentMode === MODES.HVC) {
+            modeController.triggerAiMove();
+        }
+    };
 
-    // Brain controls
+    document.getElementById('start-auto').onclick = () => modeController.startAuto();
+    document.getElementById('stop-auto').onclick = () => modeController.stopAuto();
+    document.getElementById('btn-help-ai').onclick = () => {
+        if (modeController.helpMode) {
+            modeController.helpMode = false;
+            modeController.resumeAfterHelp();
+        } else {
+            modeController.pauseForHelp('');
+            setHelpStatusText(statusEl, getGame().turn, '');
+        }
+    };
+
+    document.getElementById('enable-ai-help')?.addEventListener('change', (e) => {
+        localStorage.setItem(HELP_KEY, e.target.checked ? '1' : '0');
+        syncHelpButton();
+    });
+    document.getElementById('enable-ai-auto-help')?.addEventListener('change', (e) => {
+        localStorage.setItem(AUTO_HELP_KEY, e.target.checked ? '1' : '0');
+    });
+    document.getElementById('use-policy-net')?.addEventListener('change', (e) => {
+        localStorage.setItem(POLICY_KEY, e.target.checked ? '1' : '0');
+    });
+    const bindHelpSignal = (id, key) => {
+        document.getElementById(id)?.addEventListener('change', (e) => {
+            localStorage.setItem(key, e.target.checked ? '1' : '0');
+        });
+    };
+    bindHelpSignal('help-signal-eval', 'shatrunz_help_eval_swing');
+    bindHelpSignal('help-signal-margin', 'shatrunz_help_low_margin');
+    bindHelpSignal('help-signal-unknown', 'shatrunz_help_unknown');
+    bindHelpSignal('help-signal-repeat', 'shatrunz_help_repeat');
+    document.getElementById('enable-move-explain')?.addEventListener('change', (e) => {
+        localStorage.setItem(EXPLAIN_KEY, e.target.checked ? '1' : '0');
+        if (!e.target.checked && moveExplainEl) moveExplainEl.textContent = '';
+    });
+
     document.getElementById('reset-brain').onclick = resetBrain;
     document.getElementById('export-brain').onclick = exportBrain;
     document.getElementById('import-brain').onclick = () => document.getElementById('brain-file').click();
     document.getElementById('brain-file').onchange = importBrain;
 
-    // PGN controls
-    document.getElementById('export-pgn').onclick = exportPGN;
+    document.getElementById('export-pgn').onclick = () => pgnManager.exportCurrentGame();
     document.getElementById('load-game').onclick = loadSelectedGame;
     document.getElementById('clear-history').onclick = clearHistory;
+    document.getElementById('import-pgn')?.addEventListener('click', () => {
+        document.getElementById('pgn-file')?.click();
+    });
+    document.getElementById('pgn-file')?.addEventListener('change', importPgnFile);
+    document.getElementById('replay-start')?.addEventListener('click', () => replayStepTo(0));
+    document.getElementById('replay-back')?.addEventListener('click', () => replayStepBack());
+    document.getElementById('replay-forward')?.addEventListener('click', () => replayStepForward());
+    document.getElementById('replay-end')?.addEventListener('click', () => {
+        if (replayController) replayStepTo(replayController.maxPly);
+    });
 
-    // Training
     document.getElementById('btn-hyper-train').onclick = hyperTrain;
-    const speedControl = document.getElementById('speed-control');
-    if (speedControl) {
-        speedControl.oninput = (e) => { speedMultiplier = parseFloat(e.target.value); };
-    }
     document.getElementById('cancel-train').onclick = () => {
         isTraining = false;
-        autoRunning = false;  // CRITICAL FIX: Also stop auto-running
-        console.log('🛑 Training/Auto-play cancelled');
+        modeController.stopAuto();
     };
 }
 
+function onAivaiStrategyChange() {
+    if (currentMode !== MODES.CVC) return;
+    rebuildAivaiPlayers();
+    updateOpponentName();
+    refreshUiLocal();
+}
+
 function updateBrainStats() {
+    if (!brainStatsEl) return;
     const stats1 = ai1.brain.getStats();
     const stats2 = ai2.brain.getStats();
     const size1 = ai1.brain.getMemorySize();
@@ -136,6 +396,7 @@ function updateBrainStats() {
             Record: ${stats1.wins}W-${stats1.losses}L-${stats1.draws}D<br>
             Games: ${stats1.games}
         </div>
+        <motionless></motionless>
         <div>
             <strong>${ai2.getStrategyName()} AI</strong><br>
             Positions: ${size2}<br>
@@ -147,15 +408,14 @@ function updateBrainStats() {
 
 function updateMoveList() {
     if (!moveListEl) return;
-    const formatted = pgnManager.getFormattedMoves();
-    moveListEl.textContent = formatted || 'No moves yet';
+    const moves = pgnManager.getFormattedMoves() || 'No moves yet';
+    const help = pgnManager.getHelpSummary();
+    moveListEl.textContent = help ? `${moves}\n\n— ${help}` : moves;
 }
 
 function updateOpponentName() {
     if (!opponentNameEl) return;
-
     if (currentMode === MODES.CVC) {
-        // In AIvAI, show both AI names
         opponentNameEl.textContent = `${ai2.getStrategyName()} AI`;
         if (playerNameEl) playerNameEl.textContent = `${ai1.getStrategyName()} AI`;
     } else if (currentMode === MODES.HVC) {
@@ -167,549 +427,105 @@ function updateOpponentName() {
     }
 }
 
-// --- Rendering ---
-function renderBoard() {
-    if (isTraining) return;
+ctx.updateOpponentName = updateOpponentName;
 
-    // Visual cue: highlight the king if the side to move is in check.
-    let checkKingPos = null;
-    try {
-        if (Rules.isKingInCheck(game.board, game.turn)) {
-            for (let rr = 0; rr < BOARD_SIZE; rr++) {
-                for (let cc = 0; cc < BOARD_SIZE; cc++) {
-                    const pp = game.board[rr][cc];
-                    if (pp && pp.color === game.turn && pp.type === PIECES.KING) {
-                        checkKingPos = { r: rr, c: cc };
-                        break;
-                    }
-                }
-                if (checkKingPos) break;
-            }
-        }
-    } catch (_) {
-        // If rules implementation changes, don't let rendering break.
-        checkKingPos = null;
-    }
-
-    boardEl.innerHTML = '';
-    for (let r = 0; r < BOARD_SIZE; r++) {
-        for (let c = 0; c < BOARD_SIZE; c++) {
-            const sq = document.createElement('div');
-            sq.className = `square ${(r + c) % 2 === 0 ? 'light' : 'dark'}`;
-            sq.onclick = () => handleSquareClick(r, c);
-
-            if (c === 0) {
-                const t = document.createElement('span');
-                t.className = 'coord rank';
-                t.innerText = 9 - r;
-                sq.appendChild(t);
-            }
-            if (r === 8) {
-                const t = document.createElement('span');
-                t.className = 'coord file';
-                t.innerText = FILES[c];
-                sq.appendChild(t);
-            }
-
-            if (selectedSq && selectedSq.r === r && selectedSq.c === c) sq.classList.add('selected');
-            const lastMove = game.moveHistory[game.moveHistory.length - 1];
-            if (lastMove && ((lastMove.from.r === r && lastMove.from.c === c) || (lastMove.to.r === r && lastMove.to.c === c))) {
-                sq.classList.add('last-move');
-            }
-            if (checkKingPos && checkKingPos.r === r && checkKingPos.c === c) {
-                sq.classList.add('in-check');
-            }
-
-            const isLegal = legalMoves.find(m => m.r === r && m.c === c);
-            if (isLegal) {
-                if (game.board[r][c]) sq.classList.add('capture-move');
-                else sq.classList.add('legal-move');
-            }
-
-            const p = game.board[r][c];
-            if (p) {
-                const d = document.createElement('div');
-                d.className = `piece ${p.color === 'w' ? 'white-piece' : 'black-piece'} ${p.type === PIECES.KRISHNA ? 'krishna' : ''}`;
-                d.innerText = SYMBOLS[p.color][p.type];
-                sq.appendChild(d);
-            }
-            boardEl.appendChild(sq);
-        }
-    }
-}
-
-// --- Interaction ---
-function handleSquareClick(r, c) {
-    if (shouldBlockHumanInput({
-        mode: currentMode,
-        gameOver: game.gameOver,
-        autoRunning,
-        isTraining,
-        turn: game.turn,
-        computerSideValue: computerSideValue(),
-    })) {
-        return;
-    }
-
-    const move = legalMoves.find(m => m.r === r && m.c === c);
-    if (move) {
-        executeAndRecordMove(selectedSq, move);
-        selectedSq = null;
-        legalMoves = [];
-        renderBoard();
-        updateStatus();
-        updateMoveList();
-
-        if (
-            currentMode === MODES.HVC &&
-            !game.gameOver &&
-            shouldTriggerAiMove({
-                mode: currentMode,
-                gameOver: game.gameOver,
-                autoRunning,
-                turn: game.turn,
-                computerSideValue: computerSideValue(),
-            })
-        ) {
-            triggerAiMove();
-        }
-        return;
-    }
-
-    const p = game.board[r][c];
-    if (p && p.color === game.turn) {
-        selectedSq = { r, c };
-        legalMoves = Rules.getLegalMoves(game.board, r, c);
-        renderBoard();
-    } else {
-        selectedSq = null;
-        legalMoves = [];
-        renderBoard();
-    }
-}
-
-function executeAndRecordMove(from, to) {
-    const piece = game.board[from.r][from.c];
-    const captured = game.board[to.r][to.c];
-
-    // Keep a parallel UCI move list for engine sync.
-    // Note: for promotions, JS game auto-promotes to queen; we encode that as "q".
-    const uci = moveToUCI(from, to, piece);
-    game.executeMove(from, to);
-    if (uci) uciMoveHistory.push(uci);
-
-    const isCheck = Rules.isKingInCheck(game.board, game.turn);
-    const status = game.checkStatus();
-    const isCheckmate = status.over && isCheck;
-
-    pgnManager.recordMove(from, to, piece, captured, isCheck, isCheckmate);
-}
-
-function isAiTurn() {
-    return isAiTurnFor({ turn: game.turn, computerSideValue: computerSideValue() });
-}
-
-// --- AI Execution ---
-
-// Parse UCI move format (e.g., "e2e4") to our move format
-function parseUCIMove(uciMove) {
-    console.log('🔧 Parsing UCI move:', uciMove);
-
-    if (!uciMove || typeof uciMove !== 'string') {
-        console.error('❌ Invalid UCI move (not a string):', uciMove);
-        return null;
-    }
-
-    if (uciMove.length < 4) {
-        console.error('❌ Invalid UCI move (too short):', uciMove);
-        return null;
-    }
-
-    const files = 'abcdefghi';
-    const fromFile = files.indexOf(uciMove[0]);
-    const fromRank = 9 - parseInt(uciMove[1]);
-    const toFile = files.indexOf(uciMove[2]);
-    const toRank = 9 - parseInt(uciMove[3]);
-
-    if (fromFile < 0) {
-        console.error('❌ Invalid from file:', uciMove[0]);
-        return null;
-    }
-    if (toFile < 0) {
-        console.error('❌ Invalid to file:', uciMove[2]);
-        return null;
-    }
-    if (isNaN(fromRank) || fromRank < 0 || fromRank >= 9) {
-        console.error('❌ Invalid from rank:', uciMove[1], '-> rank:', fromRank);
-        return null;
-    }
-    if (isNaN(toRank) || toRank < 0 || toRank >= 9) {
-        console.error('❌ Invalid to rank:', uciMove[3], '-> rank:', toRank);
-        return null;
-    }
-
-    const move = {
-        from: { r: fromRank, c: fromFile },
-        to: { r: toRank, c: toFile }
-    };
-
-    console.log('✅ Parsed successfully:', move);
-    return move;
-}
-
-function moveToUCI(from, to, movedPiece) {
-    const files = 'abcdefghi';
-    const fromFile = files[from.c];
-    const toFile = files[to.c];
-    const fromRank = 9 - from.r;
-    const toRank = 9 - to.r;
-
-    if (!fromFile || !toFile || fromRank < 1 || fromRank > 9 || toRank < 1 || toRank > 9) return null;
-
-    let promo = '';
-    if (movedPiece && movedPiece.type === PIECES.PAWN && (to.r === 0 || to.r === 8)) {
-        promo = 'q';
-    }
-    return `${fromFile}${fromRank}${toFile}${toRank}${promo}`;
-}
-
-// Get move from C engine or JS AI
-async function getEngineMove() {
-    const useCEngineCheckbox = document.getElementById('use-c-engine');
-    const useCEngine = useCEngineCheckbox && useCEngineCheckbox.checked;
-
-    // Check randomness setting
-    const randomnessCheckbox = document.getElementById('add-randomness');
-    const randomnessLevel = (randomnessCheckbox && randomnessCheckbox.checked) ? 50 : 0; // 50 centipawns noise
-
-    console.log('🔍 getEngineMove called');
-    console.log('  - Use C Engine:', useCEngine);
-    console.log('  - Randomness:', randomnessLevel);
-    console.log('  - Current turn:', game.turn);
-
-    if (useCEngine) {
-        // Use C Engine via backend
-        try {
-            console.log('📡 Calling C Engine API...');
-            const startTime = performance.now();
-
-            const response = await BackendAPI.getEngineMove(uciMoveHistory, 5, randomnessLevel, null); // startpos moves ..., depth 5
-
-            const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
-            console.log(`📨 Engine response received in ${elapsed}s:`, response);
-
-            if (response.success && response.move) {
-                console.log('✅ Valid engine response, parsing move:', response.move);
-                const parsedMove = parseUCIMove(response.move);
-
-                if (parsedMove) {
-                    console.log('✅ Parsed move successfully:', parsedMove);
-                    return parsedMove;
-                } else {
-                    console.error('❌ parseUCIMove returned null for:', response.move);
-                }
-            } else {
-                console.warn('⚠️ Engine error or no move:', response.error || 'Unknown error');
-            }
-        } catch (error) {
-            console.error('❌ Engine request failed:', error);
-        }
-
-        console.log('⤵️ Falling back to JS AI');
-    }
-
-    // Use JavaScript AI (fallback or if checkbox unchecked)
-    console.log('🤖 Using JavaScript AI');
-    let aiToUse;
-    if (currentMode === MODES.CVC) {
-        aiToUse = game.turn === COLORS.WHITE ? ai1 : ai2;
-        console.log('  - AI:', game.turn === COLORS.WHITE ? 'ai1 (White)' : 'ai2 (Black)');
-    } else {
-        aiToUse = currentAI;
-        console.log('  - AI: currentAI');
-    }
-
-    const move = await aiToUse.getBestMove(game, game.turn);
-    console.log('🎯 JS AI returned move:', move);
-    return move;
-}
-
-async function triggerAiMove() {
-    if (
-        !shouldTriggerAiMove({
-            mode: currentMode,
-            gameOver: game.gameOver,
-            autoRunning,
-            turn: game.turn,
-            computerSideValue: computerSideValue(),
-        })
-    ) {
-        return;
-    }
-
-    thinkEl.innerText = 'Thinking...';
-    await new Promise(r => setTimeout(r, 50));
-
-    const moveStartTime = performance.now();
-    const move = await getEngineMove();
-    const moveEndTime = performance.now();
-
-    thinkEl.innerText = '';
-
-    if (move) {
-        // Calculate and display move time
-        const moveTimeSeconds = ((moveEndTime - moveStartTime) / 1000).toFixed(2);
-        updateMoveTime(game.turn, moveTimeSeconds);
-
-        executeAndRecordMove(move.from, move.to);
-        renderBoard();
-        updateStatus();
-        updateMoveList();
-
-        const status = game.checkStatus();
-        if (status.over) {
-            handleGameEnd(status);
-        } else if (currentMode === MODES.CVC) {
-            // CRITICAL FIX: Always continue in AI vs AI, autoRunning checked at top
-            setTimeout(triggerAiMove, 500);
-        }
-    }
-}
-
-// Update move time display
 function updateMoveTime(color, timeSeconds) {
-    const timeEl = color === COLORS.WHITE ?
-        document.getElementById('player-time') :
-        document.getElementById('opponent-time');
-
-    if (timeEl) {
-        timeEl.textContent = `${timeSeconds}s`;
-    }
+    const timeEl = color === COLORS.WHITE
+        ? document.getElementById('player-time')
+        : document.getElementById('opponent-time');
+    if (timeEl) timeEl.textContent = `${timeSeconds}s`;
 }
 
-function handleGameEnd(status) {
-    game.gameOver = true;
-    autoRunning = false;
-    document.getElementById('start-auto').disabled = false;
-    document.getElementById('stop-auto').disabled = true;
+ctx.updateMoveTime = updateMoveTime;
 
-    let pgnResult;
-    if (status.winner === COLORS.WHITE) {
-        pgnResult = '1-0';
-        if (currentMode === MODES.CVC) {
-            ai1.brain.finalizeGame('win');
-            ai2.brain.finalizeGame('loss');
-        } else {
-            currentAI.brain.finalizeGame(isAiTurn() ? 'loss' : 'win');
-        }
-    } else if (status.winner === COLORS.BLACK) {
-        pgnResult = '0-1';
-        if (currentMode === MODES.CVC) {
-            ai1.brain.finalizeGame('loss');
-            ai2.brain.finalizeGame('win');
-        } else {
-            currentAI.brain.finalizeGame(isAiTurn() ? 'loss' : 'win');
-        }
-    } else {
-        pgnResult = '1/2-1/2';
-        if (currentMode === MODES.CVC) {
-            ai1.brain.finalizeGame('draw');
-            ai2.brain.finalizeGame('draw');
-        } else {
-            currentAI.brain.finalizeGame('draw');
-        }
-    }
-
-    pgnManager.endGame(pgnResult);
-    updateBrainStats();
-    updateGameHistory();
-
-    // Persist completed games to backend (optional; frontend also stores local history).
-    // Non-blocking: don't prevent UI updates if backend is offline.
-    try {
-        const pgn = pgnManager.exportPGN(pgnManager.getGame(0));
-        BackendAPI.saveGame({
-            pgn,
-            white: pgnManager.getGame(0)?.white,
-            black: pgnManager.getGame(0)?.black,
-            result: pgnResult,
-            moves: pgnManager.getGame(0)?.moves || [],
-            uci_moves: [...uciMoveHistory]
-        });
-        BackendAPI.analyzeGame({
-            white: pgnManager.getGame(0)?.white,
-            black: pgnManager.getGame(0)?.black,
-            result: pgnResult,
-            moves: pgnManager.getGame(0)?.moves || [],
-            uci_moves: [...uciMoveHistory]
-        });
-
-        // Persist brains (precious training data) to backend as well.
-        BackendAPI.saveBrain(ai1.brain.exportToJSON());
-        BackendAPI.saveBrain(ai2.brain.exportToJSON());
-    } catch (_) {
-        // Ignore persistence failures
-    }
+function maybeExplainMove(move, record, ai) {
+    if (!isExplainEnabled() || !moveExplainEl) return;
+    const persona = ai.getStrategyName().toLowerCase();
+    const text = explainMove({
+        move,
+        persona,
+        captured: record.captured,
+        isCheck: record.isCheck,
+        isCheckmate: record.isCheckmate,
+    });
+    setTimeout(() => {
+        moveExplainEl.textContent = text;
+    }, 0);
 }
 
-// --- Game Control ---
+ctx.maybeExplainMove = maybeExplainMove;
+
+async function handleGameEnd(status) {
+    modeController.stopAuto();
+    await session.handleGameEnd(status, {
+        onAfterEnd: () => {
+            refreshUiLocal();
+            updateGameHistory();
+        },
+    });
+}
+
 function updateStatus() {
+    const game = getGame();
     const status = game.checkStatus();
-    if (status.over) {
-        statusEl.innerText = status.msg;
-    } else {
-        statusEl.innerText = status.msg;
-    }
-
+    statusEl.innerText = status.msg;
     const score = game.getScore();
-    const txt = score === 0 ? "Equal" : (score > 0 ? `White +${score}` : `Black +${Math.abs(score)}`);
+    const txt = score === 0 ? 'Equal' : (score > 0 ? `White +${score}` : `Black +${Math.abs(score)}`);
     scoreEl.innerText = `Material: ${txt}`;
 }
 
 function setMode(mode) {
     currentMode = mode;
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`mode-${mode}`).classList.add('active');
+    highlightModeNav(mode);
 
-    autoRunning = false;
+    setModeControllers(mode);
     resetGame();
-
-    // CRITICAL FIX: Hide/show AI controls based on mode
-    const startAutoBtn = document.getElementById('start-auto');
-    const stopAutoBtn = document.getElementById('stop-auto');
-
-    if (mode === MODES.HVH) {
-        // Player vs Player: Hide AI controls completely
-        startAutoBtn.style.display = 'none';
-        stopAutoBtn.style.display = 'none';
-    } else {
-        // AI modes: Show controls
-        startAutoBtn.style.display = '';
-        stopAutoBtn.style.display = '';
-        startAutoBtn.disabled = false;
-        stopAutoBtn.disabled = true;
-    }
-
-    updateOpponentName();
-    rebuildBrainsForMode();
-    updateBrainStats();
+    modeController.onEnter();
+    syncAutoButtons();
+    syncHelpButton();
 }
 
 function resetGame() {
-    autoRunning = false;
-    game = new Game();
-    uciMoveHistory = [];
-    selectedSq = null;
-    legalMoves = [];
+    exitReplay();
+    modeController.stopAuto();
+    session.abandonBrains();
+    session.reset();
+    clearSelectionLocal();
 
-    // Ensure brains match current mode/strategy selections.
-    rebuildBrainsForMode();
+    if (currentMode === MODES.CVC) rebuildAivaiPlayers();
+    else if (currentMode === MODES.HVC) rebuildPvaiPlayer();
+    else rebuildTrainingPlayers();
 
-    const whiteName = currentMode === MODES.CVC ? ai1.getStrategyName() + ' AI' : 'White';
-    const blackName = currentMode === MODES.CVC ? ai2.getStrategyName() + ' AI' :
-        currentMode === MODES.HVC ? currentAI.getStrategyName() + ' AI' : 'Black';
+    const whiteName = currentMode === MODES.CVC ? `${ai1.getStrategyName()} AI` : 'White';
+    const blackName = currentMode === MODES.CVC ? `${ai2.getStrategyName()} AI`
+        : currentMode === MODES.HVC ? `${currentAI.getStrategyName()} AI` : 'Black';
 
     pgnManager.startNewGame(whiteName, blackName, currentMode);
-
-    renderBoard();
-    updateStatus();
-    updateMoveList();
-}
-
-function handleUndo() {
-    if (autoRunning || isTraining) return;
-    // Allow undo even after game end (useful for analysis/review).
-    // If undo succeeds we resume a non-terminal state.
-
-    if (currentMode === MODES.HVH) {
-        if (game.undoLastMove()) {
-            uciMoveHistory.pop();
-            selectedSq = null;
-            legalMoves = [];
-            game.gameOver = false;
-            renderBoard();
-            updateStatus();
-            updateMoveList();
-        }
-    } else if (currentMode === MODES.HVC) {
-        if (!isAiTurn()) {
-            game.undoLastMove();
-            game.undoLastMove();
-            uciMoveHistory.pop();
-            uciMoveHistory.pop();
-            selectedSq = null;
-            legalMoves = [];
-            game.gameOver = false;
-            renderBoard();
-            updateStatus();
-            updateMoveList();
-        }
-    }
+    boardView.render();
+    refreshUiLocal();
+    if (moveExplainEl) moveExplainEl.textContent = '';
 }
 
 function handleLevelChange(e) {
-    const level = parseInt(e.target.value);
+    const level = parseInt(e.target.value, 10);
     document.getElementById('ai-level-label').innerText = level;
-    currentAI.setLevel(level);
-    ai1.setLevel(level);
-    ai2.setLevel(level);
-    rebuildBrainsForMode();
-    updateBrainStats();
+    if (currentMode === MODES.CVC) rebuildAivaiPlayers();
+    else if (currentMode === MODES.HVC) rebuildPvaiPlayer();
+    else rebuildTrainingPlayers();
+    refreshUiLocal();
 }
 
-function handleStrategyChange(e) {
-    const strategy = e.target.value;
-    currentAI.setStrategy(strategy);
-    rebuildBrainsForMode();
-    updateOpponentName();
-    updateBrainStats();
-}
-
-function handleSideChange() {
-    if (
-        autoRunning &&
-        !game.gameOver &&
-        shouldTriggerAiMove({
-            mode: currentMode,
-            gameOver: game.gameOver,
-            autoRunning,
-            turn: game.turn,
-            computerSideValue: computerSideValue(),
-        })
-    ) {
-        triggerAiMove();
-    }
-}
-
-function startAuto() {
-    autoRunning = true;
-    document.getElementById('start-auto').disabled = true;
-    document.getElementById('stop-auto').disabled = false;
-
-    triggerAiMove();
-}
-
-function stopAuto() {
-    autoRunning = false;
-    document.getElementById('start-auto').disabled = false;
-    document.getElementById('stop-auto').disabled = true;
-}
-
-// --- Brain Management ---
 function resetBrain() {
     if (confirm('Reset all AI brain memory? This cannot be undone.')) {
         ai1.brain.clear();
         ai2.brain.clear();
         currentAI.brain.clear();
-        updateBrainStats();
+        refreshUiLocal();
     }
 }
 
 function exportBrain() {
-    const data1 = ai1.brain.exportToJSON();
-    const data2 = ai2.brain.exportToJSON();
-    const combined = { ai1: data1, ai2: data2 };
-
+    const combined = { ai1: ai1.brain.exportToJSON(), ai2: ai2.brain.exportToJSON() };
     const blob = new Blob([JSON.stringify(combined, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -722,38 +538,29 @@ function exportBrain() {
 function importBrain(e) {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
         try {
             const data = JSON.parse(event.target.result);
             if (data.ai1) ai1.brain.importFromJSON(data.ai1);
             if (data.ai2) ai2.brain.importFromJSON(data.ai2);
-            updateBrainStats();
+            refreshUiLocal();
             alert('Brain data imported successfully!');
-        } catch (e) {
-            alert('Failed to import brain data: ' + e.message);
+        } catch (err) {
+            alert('Failed to import brain data: ' + err.message);
         }
     };
     reader.readAsText(file);
 }
 
-// --- PGN Management ---
-function exportPGN() {
-    pgnManager.exportCurrentGame();
-}
-
 function updateGameHistory() {
     const select = document.getElementById('game-history');
     if (!select) return;
-
     select.innerHTML = '';
-    const history = pgnManager.getGameHistory();
-
-    history.forEach((game, index) => {
+    pgnManager.getGameHistory().forEach((g, index) => {
         const option = document.createElement('option');
         option.value = index;
-        option.textContent = `${game.date} - ${game.white} vs ${game.black} (${game.result})`;
+        option.textContent = `${g.date} - ${g.white} vs ${g.black} (${g.result})`;
         select.appendChild(option);
     });
 }
@@ -762,10 +569,81 @@ function loadSelectedGame() {
     const select = document.getElementById('game-history');
     if (!select || select.value === '') return;
 
-    const gameData = pgnManager.getGame(parseInt(select.value));
-    if (gameData) {
-        alert('Game loaded:\n' + pgnManager.exportPGN(gameData));
+    const gameData = pgnManager.getGame(parseInt(select.value, 10));
+    if (!gameData) return;
+
+    const uci = gameData.uci_moves;
+    if (!uci || uci.length === 0) {
+        alert('Replay unavailable (no UCI moves saved).\n\n' + pgnManager.exportPGN(gameData));
+        return;
     }
+
+    startReplay(uci, gameData);
+}
+
+function startReplay(uciMoves, meta = {}) {
+    modeController.stopAuto();
+    replayController = new ReplayStepController(uciMoves);
+    applyReplayFrame(meta);
+}
+
+function applyReplayFrame(meta = {}) {
+    if (!replayController) return;
+    session.game = replayController.game;
+    session.uciMoveHistory = replayController.uciHistory;
+    session.game.gameOver = replayController.ply >= replayController.maxPly;
+    clearSelectionLocal();
+    boardView.render();
+    refreshUiLocal();
+    const label = document.getElementById('replay-ply-label');
+    const controls = document.getElementById('replay-controls');
+    if (label) label.textContent = `${replayController.ply} / ${replayController.maxPly}`;
+    if (controls) controls.style.display = 'flex';
+    const title = meta.white && meta.black
+        ? `Replay: ${meta.white} vs ${meta.black} (${meta.result || '*'})`
+        : 'Replay mode';
+    statusEl.innerText = title;
+}
+
+function exitReplay() {
+    replayController = null;
+    const controls = document.getElementById('replay-controls');
+    if (controls) controls.style.display = 'none';
+}
+
+function replayStepTo(ply) {
+    if (!replayController) return;
+    replayController.stepTo(ply);
+    applyReplayFrame();
+}
+
+function replayStepForward() {
+    if (!replayController) return;
+    replayController.stepForward();
+    applyReplayFrame();
+}
+
+function replayStepBack() {
+    if (!replayController) return;
+    replayController.stepBack();
+    applyReplayFrame();
+}
+
+function importPgnFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        const result = pgnManager.importPgnFile(reader.result);
+        if (!result.ok) {
+            alert('Import failed: ' + (result.error || 'unknown'));
+            return;
+        }
+        updateGameHistory();
+        alert('PGN imported. Select it in Game History and Load / Replay.');
+        e.target.value = '';
+    };
+    reader.readAsText(file);
 }
 
 function clearHistory() {
@@ -775,11 +653,11 @@ function clearHistory() {
     }
 }
 
-// --- Hyper Training ---
 async function hyperTrain() {
     if (isTraining) return;
     isTraining = true;
-    autoRunning = false;
+    ctx.isTraining = true;
+    modeController.stopAuto();
 
     const overlay = document.getElementById('training-overlay');
     const bar = document.getElementById('train-progress');
@@ -788,26 +666,27 @@ async function hyperTrain() {
 
     const GAMES_TO_TRAIN = 50;
     const oldLevel = ai1.level;
+    rebuildTrainingPlayers();
     ai1.setLevel(2);
     ai2.setLevel(2);
 
     for (let i = 1; i <= GAMES_TO_TRAIN && isTraining; i++) {
-        game = new Game();
-        pgnManager.startNewGame(ai1.getStrategyName(), ai2.getStrategyName(), 'training');
+        session.reset();
+        pgnManager.startNewGame(ai1.getStrategyName() + ' AI', ai2.getStrategyName() + ' AI', 'training');
         let moves = 0;
 
         status.innerText = `Game ${i}/${GAMES_TO_TRAIN}`;
         bar.style.width = `${(i / GAMES_TO_TRAIN) * 100}%`;
 
-        while (!game.gameOver && moves < 150) {
-            const aiToUse = game.turn === COLORS.WHITE ? ai1 : ai2;
-            const m = await aiToUse.getBestMove(game, game.turn, true);
+        while (!session.game.gameOver && moves < 150 && isTraining) {
+            const aiToUse = session.game.turn === COLORS.WHITE ? ai1 : ai2;
+            const m = await aiToUse.getBestMove(session.game, session.game.turn, true);
 
             if (m) {
-                executeAndRecordMove(m.from, m.to);
-                const st = game.checkStatus();
+                session.executeAndRecordMove(m.from, m.to);
+                const st = session.game.checkStatus();
                 if (st.over) {
-                    handleGameEnd(st);
+                    session.finalizeTrainingGame(st);
                 }
             } else break;
 
@@ -817,13 +696,13 @@ async function hyperTrain() {
     }
 
     isTraining = false;
+    ctx.isTraining = false;
     overlay.style.display = 'none';
     ai1.setLevel(oldLevel);
     ai2.setLevel(oldLevel);
-    updateBrainStats();
+    refreshUiLocal();
     updateGameHistory();
     resetGame();
 }
 
-// Initialize on load
 updateGameHistory();

@@ -65,6 +65,21 @@ export class GameBrain {
         this.positionTrace.push(hash);
     }
 
+    abandonGame() {
+        this.history = [];
+        this.positionTrace = [];
+    }
+
+    /** Remove the last in-game move from training trace (undo). */
+    rollbackLastMove() {
+        if (this.history.length === 0) return false;
+        this.history.pop();
+        if (this.positionTrace.length > 0) {
+            this.positionTrace.pop();
+        }
+        return true;
+    }
+
     finalizeGame(result) {
         // result: 'win', 'loss', 'draw'
         if (this.history.length === 0) return;

@@ -1,6 +1,9 @@
 import { BOARD_SIZE, COLORS, PIECES, WEIGHTS } from './constants.js';
 import { Rules } from './rules.js';
 import { GameBrain } from './brain.js';
+import { openingBookBonus, endgameDepthBonus } from './shared/opening_book.js';
+import { fetchPolicyBonuses, isPolicyNetEnabled } from './shared/policy_net.js';
+import { moveToUCI } from './shared/uci.js';
 
 // --- AI Strategy Base Class ---
 class AIStrategy {
@@ -342,7 +345,7 @@ export class AIPlayer {
         board[move.to.r][move.to.c] = undoInfo.captured;
     }
 
-    async getBestMove(game, color, fastMode = false) {
+    async getBestMove(game, color, fastMode = false, opts = {}) {
         // Check randomness setting
         const randomnessCheckbox = document.getElementById('add-randomness');
         const addRandomness = randomnessCheckbox && randomnessCheckbox.checked;
@@ -353,14 +356,24 @@ export class AIPlayer {
         // Check memory for bonuses
         const gameHash = game.getHash();
         const positionValue = this.brain.getPositionValue(gameHash);
+        const searchDepth = this.depth + endgameDepthBonus(game);
+
+        let policyBonuses = {};
+        if (isPolicyNetEnabled()) {
+            policyBonuses = await fetchPolicyBonuses(
+                game, color, moves, opts.uciPrefix || []
+            );
+        }
 
         this.lastYieldTime = performance.now();
         this.shouldYield = false;
 
         let bestMove = null;
         let bestScore = -Infinity;
+        let secondScore = -Infinity;
 
         for (const move of moves) {
+            const pieceBefore = game.board[move.from.r][move.from.c];
             if (this.shouldYield && !fastMode) {
                 await new Promise(r => setTimeout(r, 0));
                 this.lastYieldTime = performance.now();
@@ -368,23 +381,34 @@ export class AIPlayer {
             }
 
             game.makeMove(move.from, move.to);
-            let score = -this.alphabeta(game, this.depth - 1, -Infinity, Infinity,
+            let score = -this.alphabeta(game, searchDepth - 1, -Infinity, Infinity,
                 color === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE, addRandomness);
             game.undoMove();
 
-            // Apply brain bonus
             const moveStr = `${move.from.r}${move.from.c}-${move.to.r}${move.to.c}`;
+            const uci = pieceBefore ? moveToUCI(move.from, move.to, pieceBefore) : null;
             const bonus = this.brain.getBonus(gameHash, moveStr);
             score += bonus * 0.5;
-
-            // Add learned position value as a small prior (ML-ish).
+            score += openingBookBonus(this.brain, gameHash, moveStr, game);
             score += positionValue * 0.2;
+            if (uci && policyBonuses[uci] != null) {
+                score += policyBonuses[uci] * 0.3;
+            }
 
             if (score > bestScore) {
+                secondScore = bestScore;
                 bestScore = score;
                 bestMove = move;
+            } else if (score > secondScore) {
+                secondScore = score;
             }
         }
+
+        this.lastDecision = {
+            bestScore,
+            secondScore: secondScore === -Infinity ? bestScore : secondScore,
+            move: bestMove,
+        };
 
         // Record move for learning
         if (bestMove) {

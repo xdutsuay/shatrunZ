@@ -1,4 +1,5 @@
 import { FILES, COLORS, PIECES } from './constants.js';
+import { importPgnText, pgnImportToGameRecord } from './shared/pgn_parse.js';
 
 // --- PGN Manager ---
 export class PGNManager {
@@ -19,8 +20,44 @@ export class PGNManager {
             variant: "9x9 ShatrunZ",
             fen: "rnbqkbznr/ppppppppp/9/9/9/9/9/PPPPPPPPP/RNBQKBZNR w - - 0 1",
             moves: [],
+            uci_moves: [],
+            help_plies: [],
             mode: mode
         };
+    }
+
+    /** Record a human-assisted ply (Help mode). */
+    recordHelpMove(ply, side, uci, reason = '') {
+        if (!this.currentGame) return;
+        if (!this.currentGame.help_plies) this.currentGame.help_plies = [];
+        this.currentGame.help_plies.push({ ply, side, uci, reason });
+    }
+
+    static encodeHelpMovesTag(helpPlies) {
+        if (!helpPlies || helpPlies.length === 0) return '';
+        return helpPlies.map(h => `${h.ply}:${h.side}:${h.uci}`).join(';');
+    }
+
+    static parseHelpMovesTag(raw) {
+        if (!raw || !raw.trim()) return [];
+        return raw.split(';').filter(Boolean).map((part) => {
+            const [ply, side, uci] = part.split(':');
+            return { ply: parseInt(ply, 10), side, uci, reason: '' };
+        });
+    }
+
+    getHelpSummary(game = null) {
+        const g = game || this.currentGame;
+        if (!g?.help_plies?.length) return '';
+        const w = g.help_plies.filter(h => h.side === 'w' || h.side === 'white').length;
+        const b = g.help_plies.filter(h => h.side === 'b' || h.side === 'black').length;
+        const total = g.help_plies.length;
+        return `${total} human-helped ${total === 1 ? 'ply' : 'plies'} (White: ${w}, Black: ${b})`;
+    }
+
+    recordUciMove(uci) {
+        if (!this.currentGame || !uci) return;
+        this.currentGame.uci_moves.push(uci);
     }
 
     recordMove(from, to, piece, captured, isCheck, isCheckmate) {
@@ -45,10 +82,13 @@ export class PGNManager {
         return `${pieceSymbol}${captureSymbol}${toSquare}${suffix}`;
     }
 
-    endGame(result) {
+    endGame(result, uciMoves = null) {
         if (!this.currentGame) return;
 
         this.currentGame.result = result; // "1-0", "0-1", "1/2-1/2"
+        if (uciMoves && uciMoves.length) {
+            this.currentGame.uci_moves = [...uciMoves];
+        }
         this.currentGame.endTime = new Date().toISOString();
         this.games.unshift(this.currentGame); // Add to beginning
 
@@ -64,6 +104,21 @@ export class PGNManager {
     getCurrentMoves() {
         if (!this.currentGame) return [];
         return this.currentGame.moves;
+    }
+
+    /** Pop last algebraic + UCI ply from the active game (undo). */
+    popLastMove() {
+        if (!this.currentGame) return false;
+        let changed = false;
+        if (this.currentGame.moves.length > 0) {
+            this.currentGame.moves.pop();
+            changed = true;
+        }
+        if (this.currentGame.uci_moves.length > 0) {
+            this.currentGame.uci_moves.pop();
+            changed = true;
+        }
+        return changed;
     }
 
     getFormattedMoves() {
@@ -93,6 +148,15 @@ export class PGNManager {
             const value = gameData[key.toLowerCase()] || '?';
             pgn += `[${key} "${value}"]\n`;
         });
+
+        if (gameData.uci_moves && gameData.uci_moves.length > 0) {
+            pgn += `[UciMoves "${gameData.uci_moves.join(' ')}"]\n`;
+        }
+
+        const helpTag = PGNManager.encodeHelpMovesTag(gameData.help_plies);
+        if (helpTag) {
+            pgn += `[HelpMoves "${helpTag}"]\n`;
+        }
 
         pgn += '\n';
 
@@ -159,5 +223,22 @@ export class PGNManager {
     clearHistory() {
         this.games = [];
         localStorage.removeItem('shatrunz_pgn_history');
+    }
+
+    /**
+     * Parse PGN text and append to history.
+     * @returns {{ ok: boolean, index?: number, error?: string }}
+     */
+    importPgnFile(text) {
+        const parsed = importPgnText(text);
+        if (parsed.error) return { ok: false, error: parsed.error };
+        const record = pgnImportToGameRecord(parsed);
+        if (!record.uci_moves.length && !record.moves.length) {
+            return { ok: false, error: 'No moves found in PGN' };
+        }
+        this.games.unshift(record);
+        if (this.games.length > 50) this.games = this.games.slice(0, 50);
+        this.saveGames();
+        return { ok: true, index: 0, game: record };
     }
 }
