@@ -372,6 +372,10 @@ function setupEventListeners() {
     document.getElementById('cancel-train').onclick = () => {
         isTraining = false;
         modeController.stopAuto();
+        const overlay = document.getElementById('training-overlay');
+        if (overlay) overlay.style.display = 'none';
+        boardView.render();
+        refreshUiLocal();
     };
 }
 
@@ -653,16 +657,29 @@ function clearHistory() {
     }
 }
 
+function endHyperTrainSession({ overlay, oldLevel }) {
+    isTraining = false;
+    if (overlay) overlay.style.display = 'none';
+    if (oldLevel != null) {
+        ai1.setLevel(oldLevel);
+        ai2.setLevel(oldLevel);
+    }
+    if (currentMode === MODES.CVC) rebuildAivaiPlayers();
+    else if (currentMode === MODES.HVC) rebuildPvaiPlayer();
+    else rebuildTrainingPlayers();
+    boardView.render();
+    refreshUiLocal();
+}
+
 async function hyperTrain() {
     if (isTraining) return;
     isTraining = true;
-    ctx.isTraining = true;
     modeController.stopAuto();
 
     const overlay = document.getElementById('training-overlay');
     const bar = document.getElementById('train-progress');
     const status = document.getElementById('train-status');
-    overlay.style.display = 'flex';
+    if (overlay) overlay.style.display = 'flex';
 
     const GAMES_TO_TRAIN = 50;
     const oldLevel = ai1.level;
@@ -670,39 +687,49 @@ async function hyperTrain() {
     ai1.setLevel(2);
     ai2.setLevel(2);
 
-    for (let i = 1; i <= GAMES_TO_TRAIN && isTraining; i++) {
-        session.reset();
-        pgnManager.startNewGame(ai1.getStrategyName() + ' AI', ai2.getStrategyName() + ' AI', 'training');
-        let moves = 0;
+    try {
+        for (let i = 1; i <= GAMES_TO_TRAIN && isTraining; i++) {
+            session.reset();
+            pgnManager.startNewGame(
+                `${ai1.getStrategyName()} AI`,
+                `${ai2.getStrategyName()} AI`,
+                'training'
+            );
+            let moves = 0;
 
-        status.innerText = `Game ${i}/${GAMES_TO_TRAIN}`;
-        bar.style.width = `${(i / GAMES_TO_TRAIN) * 100}%`;
+            if (status) status.innerText = `Game ${i}/${GAMES_TO_TRAIN}`;
+            if (bar) bar.style.width = `${(i / GAMES_TO_TRAIN) * 100}%`;
 
-        while (!session.game.gameOver && moves < 150 && isTraining) {
-            const aiToUse = session.game.turn === COLORS.WHITE ? ai1 : ai2;
-            const m = await aiToUse.getBestMove(session.game, session.game.turn, true);
+            while (!session.game.gameOver && moves < 150 && isTraining) {
+                const aiToUse = session.game.turn === COLORS.WHITE ? ai1 : ai2;
+                const m = await aiToUse.getBestMove(session.game, session.game.turn, true);
 
-            if (m) {
-                session.executeAndRecordMove(m.from, m.to);
-                const st = session.game.checkStatus();
-                if (st.over) {
-                    session.finalizeTrainingGame(st);
+                if (m) {
+                    session.executeAndRecordMove(m.from, m.to);
+                    if (moves % 5 === 0) boardView.render();
+                    const st = session.game.checkStatus();
+                    if (st.over) {
+                        session.finalizeTrainingGame(st);
+                    }
+                } else {
+                    break;
                 }
-            } else break;
 
-            moves++;
-            if (moves % 20 === 0) await new Promise(r => setTimeout(r, 0));
+                moves++;
+                if (moves % 20 === 0) await new Promise((r) => setTimeout(r, 0));
+            }
         }
+    } catch (err) {
+        console.error('Hyper-train failed:', err);
+        if (status) status.innerText = `Training stopped: ${err.message}`;
+    } finally {
+        // #region agent log
+        fetch('http://127.0.0.1:7740/ingest/f890c3d0-303f-46d6-beb2-79c6d41b60da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'07a98d'},body:JSON.stringify({sessionId:'07a98d',location:'ui.js:hyperTrain:finally',message:'hypertrain end',data:{isTraining},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
+        // #endregion
+        endHyperTrainSession({ overlay, oldLevel });
+        updateGameHistory();
+        resetGame();
     }
-
-    isTraining = false;
-    ctx.isTraining = false;
-    overlay.style.display = 'none';
-    ai1.setLevel(oldLevel);
-    ai2.setLevel(oldLevel);
-    refreshUiLocal();
-    updateGameHistory();
-    resetGame();
 }
 
 updateGameHistory();
