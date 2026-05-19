@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "top1_accuracy": null,
+  "top3_accuracy": null,
+  "precision": null,
+  "recall": null,
+  "value_mae": null,
+  "positions_evaluated": 0,
+  "note": "Run: python ml/train.py --games-jsonl data/selfplay/run_*/games.jsonl && python ml/eval.py"
+}

@@ -80,13 +80,56 @@ for dir_path in [DATA_DIR, GAMES_DIR, BRAINS_DIR, LOGS_DIR]:
     dir_path.mkdir(exist_ok=True)
 
 # Serve static files
+FRONTEND_DIR = '../frontend'
+MODELS_DIR = BASE_DIR / 'models'
+MODELS_DIR.mkdir(exist_ok=True)
+
+
 @app.route('/')
-def index():
-    return send_from_directory('../frontend', 'index.html')
+def home():
+    return send_from_directory(FRONTEND_DIR, 'index.html')
+
+
+@app.route('/pvp')
+@app.route('/pvai')
+@app.route('/aivai')
+def play_page():
+    return send_from_directory(FRONTEND_DIR, 'play.html')
+
+
+@app.route('/models/<path:path>')
+def serve_models(path):
+    return send_from_directory(MODELS_DIR, path)
+
+
+@app.route('/api/ml/policy-hint', methods=['POST'])
+def ml_policy_hint():
+    data = request.json or {}
+    uci_prefix = data.get('uci_prefix') or []
+    legal_uci = data.get('legal_uci') or []
+    try:
+        from ml.policy_inference import policy_bonuses_for_position
+        bonuses = policy_bonuses_for_position(uci_prefix, legal_uci)
+        return jsonify({'success': True, 'bonuses': bonuses})
+    except Exception as e:
+        return jsonify({'success': False, 'bonuses': {}, 'error': str(e)})
+
+
+@app.route('/api/ml/metrics', methods=['GET'])
+def ml_metrics():
+    metrics_path = MODELS_DIR / 'metrics_v1.json'
+    if not metrics_path.is_file():
+        return jsonify({
+            'version': 1,
+            'note': 'No metrics yet. Run ml/train.py and ml/eval.py.',
+        })
+    with open(metrics_path, 'r', encoding='utf-8') as f:
+        return jsonify(json.load(f))
+
 
 @app.route('/<path:path>')
 def serve_static(path):
-    return send_from_directory('../frontend', path)
+    return send_from_directory(FRONTEND_DIR, path)
 
 # Save PGN game
 @app.route('/api/save-game', methods=['POST'])
