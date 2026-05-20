@@ -240,7 +240,7 @@ def engine_move():
         
         move = engine.get_best_move(fen=fen, moves=moves, depth=depth, randomness=randomness)
         
-        if move:
+        if move and move not in ("0000", "(none)", "none"):
             return jsonify({'success': True, 'move': move})
         else:
             return jsonify({'success': False, 'error': 'No legal moves'}), 400

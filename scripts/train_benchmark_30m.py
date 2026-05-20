@@ -1,10 +1,15 @@
 import json
 import os
+import sys
 import time
 from datetime import datetime
 from pathlib import Path
 
-from backend.server import engine as ENGINE
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from backend.server import engine as ENGINE  # noqa: E402
 
 
 def main():
@@ -22,6 +27,7 @@ def main():
     calls = 0
     failures = 0
     last_err = ""
+    last_report = started
 
     # Benchmark is intentionally simple: repeated best-move calls from the starting position.
     # This gives us a stable throughput metric per build (moves/sec) without full self-play wiring.
@@ -34,6 +40,12 @@ def main():
             failures += 1
             last_err = str(e)
         calls += 1
+
+        now = time.time()
+        if now - last_report >= 10:
+            elapsed = now - started
+            print(f"[bench] {elapsed:0.0f}s calls={calls} failures={failures}", flush=True)
+            last_report = now
 
     elapsed = time.time() - started
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")

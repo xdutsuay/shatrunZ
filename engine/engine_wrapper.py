@@ -148,7 +148,10 @@ class ShatrunZEngine:
             if line and line.startswith('bestmove'):
                 parts = line.split()
                 if len(parts) >= 2:
-                    return parts[1]
+                    mv = parts[1]
+                    if mv in ('0000', '(none)', 'none'):
+                        return None
+                    return mv
                 return None
     
     def quit(self):

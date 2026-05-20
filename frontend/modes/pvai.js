@@ -157,8 +157,13 @@ export class PvaiModeController extends ModeController {
         this.aiMoveInFlight = false;
 
         if (!move) {
-            this.stopAuto();
-            this.ctx.statusEl.innerText = 'AI could not find a move — auto-play stopped.';
+            const status = game.checkStatus();
+            if (status.over) {
+                this.ctx.onGameEnd(status);
+            } else {
+                this.stopAuto();
+                this.ctx.statusEl.innerText = 'AI could not find a move — auto-play stopped.';
+            }
             return;
         }
 
