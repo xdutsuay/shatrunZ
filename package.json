@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test \"tests-js/**/*.test.js\""
+    "test": "node --test \"tests-js/**/*.test.js\"",
+    "test:fuzz": "node --test tests-js/fuzz_rules_invariants.test.js",
+    "test:perft": "node --test tests-js/perft_sanity.test.js"
   }
 }
 

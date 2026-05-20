@@ -439,6 +439,15 @@ body {
     transform: translateZ(0);
 }
 
+@keyframes movedPiecePulse {
+    from { transform: translateZ(0) scale(1); filter: brightness(1.05); }
+    to { transform: translateZ(0) scale(1.08); filter: brightness(1); }
+}
+
+.square.last-move .piece {
+    animation: movedPiecePulse 140ms ease-out;
+}
+
 .white-piece {
     color: #fff;
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);

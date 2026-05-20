@@ -1,210 +1,89 @@
-# 🎉 SHATRUNZ - COMPLETE SYSTEM READY!
+# ShatrunZ
 
-## ✅ What's Been Built
+**ShatrunZ** is a 9×9 chess variant platform: custom rules (including the uncapturable **Krishna** piece), a bundled C UCI engine, browser play UI, optional ML policy hints, and an admin dashboard for settings and training benchmarks.
 
-### 1. **Project Structure**
-```
-shatrunZ/
-├── frontend/          ✅ Web Interface (HTML/JS/CSS)
-├── backend/           ✅ Flask Server & Game Inspector
-├── engine/            ✅ C Chess Engine (100x faster!)
-├── data/              ✅ Games, Brains, & Logs
-├── docs/              ✅ Documentation
-└── archive/           ✅ Old/Unused code
-```
+This repository is the canonical home for the project—not a thin wrapper around another chess app.
 
-### 2. **C Chess Engine**
-- **Speed:** ~1M nodes/second
-- **Protocol:** UCI compatible
-- **Features:** Alpha-beta pruning, Move ordering
+## Quick start
 
-### 3. **Backend**
-- **Server:** Flask (API & Static files)
-- **Analysis:** Real-time game inspector
-- **Storage:** JSON & PGN format
-
-### 4. **Frontend**
-- **UI:** Lichess-inspired dark mode
-- **AI:** Hybrid (C Engine + JS Fallback)
-- **Features:** Move timing, Randomness, PGN export
-
-## 🚀 How to Start
-
-### Terminal 1: Start Backend
 ```bash
-cd /Users/nehatiwari/localcode/shatrunZ
-source .venv/bin/activate
-python start.py
+git clone https://github.com/xdutsuay/shatrunZ.git
+cd shatrunZ
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+make -C engine
+./start.sh          # or: python start.py
 ```
 
-You should see:
-```
-🚀 Initializing C Engine...
-Engine init: id name ShatrunZ Engine v1.0
-Engine init: id author ShatrunZ Team
-Engine init: uciok
-✅ Engine ready!
-✅ C Engine ready!
-🌐 Flask Server: Starting on port 8000...
-👁️  Game Inspector: Starting...
-```
+Open **http://localhost:8000**
 
-### Browser: Open Game
-```
-http://localhost:8000
-```
+| Route | Mode |
+|-------|------|
+| `/pvp` | Human vs human |
+| `/pvai` | Human vs AI (C engine and/or JS personas) |
+| `/aivai` | AI vs AI with learning brains |
+| `/admin` | Settings, persona stats, training-run history |
 
-### Play!
-1. Click **AIvAI** tab
-2. Ensure **"Use C Engine"** is checked ✅
-3. Click **"Start AI"**
-4. Watch the magic! ⚡
+## What you get
 
-## 📊 Performance Comparison
+- **Variant rules** — 9×9 board, standard pieces plus Krishna, promotion, and full legality in JS (`frontend/rules.js`, `frontend/game.js`) and C (`engine/`).
+- **Play UI** — Dark, compact layout; live move list; PGN export; undo; step replay (`|<<` `◀` `▶` `>>|`); last-move highlight animation.
+- **Clocks** — Total time + increment, configured in admin and enforced during play (paused on help, review, and training).
+- **AI** — Material / Positional / Aggressive personas with persistent brain learning; optional C engine via `/api/engine-move`; PvAI autoplay hardened (timeouts, null-move handling, game-over detection).
+- **Admin** — Central settings store, persona stats from brain data, list of `data/training_runs/` benchmark JSON.
+- **ML (optional)** — Policy training from self-play; `/api/ml/policy-hint` for JS AI bonuses (`requirements-ml.txt`).
 
-| Feature | JS AI | C Engine |
-|---------|-------|----------|
-| **Speed (depth 5)** | ~10 seconds | ~0.1 seconds |
-| **Strength** | ~1200 ELO | ~1800 ELO |
-| **Nodes/second** | ~1,000 | ~100,000 |
-| **Max depth** | 3 | 7+ |
-| **Game variety** | ❌ Same games | ✅ Different |
-| **Endgame** | ❌ Weak | ✅ Strong |
-
-## 🎯 Features
-
-### C Engine Features:
-- ✅ Full 9x9 board support
-- ✅ Krishna piece (can't be captured!)
-- ✅ All standard pieces (pawn, knight, bishop, rook, queen, king)
-- ✅ Pawn promotion
-- ✅ Legal move validation
-- ✅ King safety checks
-- ✅ Alpha-beta pruning
-- ✅ Move ordering (captures first)
-- ✅ UCI protocol compliance
-
-### UI Features:
-- ✅ Toggle between C Engine and JS AI
-- ✅ Three game modes (PvP, PvAI, AIvAI)
-- ✅ Multiple AI strategies (Material, Positional, Aggressive)
-- ✅ PGN recording and export
-- ✅ Game history browser
-- ✅ Brain learning system
-- ✅ Hyper-training mode
-- ✅ Beautiful dark theme
-
-## 🧪 Testing
-
-### Test C Engine Directly:
-```bash
-cd engine
-echo -e "uci\nisready\nposition startpos\ngo depth 5\nquit" | ./shatrunz_engine
-```
-
-Expected output:
-```
-id name ShatrunZ Engine v1.0
-id author ShatrunZ Team
-uciok
-readyok
-bestmove a2a3
-```
-
-### Test Backend API:
-```bash
-curl -X POST http://localhost:8000/api/engine-move \
-  -H "Content-Type: application/json" \
-  -d '{"depth": 5}'
-```
-
-Expected:
-```json
-{"success": true, "move": "a2a3"}
-```
-
-### Test Frontend:
-1. Open http://localhost:8000
-2. Open browser console (F12)
-3. Check "Use C Engine" checkbox
-4. Start AIvAI game
-5. Watch console for "C Engine move: ..." logs
-
-## 🎮 Usage Tips
-
-### For Fast Games:
-- ✅ Check "Use C Engine"
-- Set depth to 5
-- Watch games complete in seconds!
-
-### For Learning/Testing:
-- ❌ Uncheck "Use C Engine"
-- Use JS AI with different strategies
-- Compare Material vs Positional vs Aggressive
-
-### For Analysis:
-- Watch terminal for game inspector output
-- Check `data/logs/` for analysis files
-- Review PGN in game history
-
-## 📁 Project Structure
+## Project layout
 
 ```
 shatrunZ/
-├── engine/              # C Chess Engine
-│   ├── shatrunz_engine  # Compiled binary
-│   ├── *.c, *.h         # Source files
-│   └── engine_wrapper.py # Python interface
-├── html/                # Frontend
-│   ├── index.html       # Main page
-│   ├── *.js             # Game logic
-│   └── style.css        # Styling
-├── data/                # Generated data
-│   ├── games/           # PGN files
-│   ├── brains/          # AI learning data
-│   └── logs/            # Analysis logs
-├── server.py            # Flask backend
-├── inspector.py         # Game analyzer
-├── start.py             # Unified launcher
-└── docs/                # Documentation
+├── frontend/          # Play + admin UI (vanilla JS)
+├── backend/           # Flask API and static serving
+├── engine/            # C UCI engine + Python wrapper
+├── scripts/           # Self-play, benchmarks, training helpers
+├── tests-js/          # Node test runner (rules, modes, replay, fuzz)
+├── tests/             # Python tests
+├── data/              # Games, brains, training runs (gitignored where noted)
+└── docs/              # Architecture, engine roles, roadmaps
 ```
 
-## 🔧 Future Improvements
+## Tests
 
-### Easy (1-2 hours):
-- [ ] Better evaluation (piece-square tables)
-- [ ] Quiescence search
-- [ ] Iterative deepening
+```bash
+npm test                    # all JS tests (44+)
+npm run test:fuzz           # 60s seeded rules fuzz + invariants
+npm run test:perft          # apply/undo depth-2 sanity
+pytest tests/ -q            # Python suite
+```
 
-### Medium (3-4 hours):
-- [ ] Transposition table
-- [ ] Opening book
-- [ ] Endgame tablebases
+## Training benchmark
 
-### Advanced (1-2 days):
-- [ ] Neural network evaluation
-- [ ] Multi-threading
-- [ ] NNUE (Stockfish-style)
+Record engine throughput (calls/sec) for comparison across runs:
 
-## 🎉 Success Metrics
+```bash
+python scripts/train_benchmark_30m.py   # duration via env; see script header
+```
 
-You now have:
-- ✅ Professional-grade chess engine in C
-- ✅ 100x performance improvement
-- ✅ UCI-compliant architecture
-- ✅ Beautiful web interface
-- ✅ Game analysis system
-- ✅ Learning AI with multiple strategies
-- ✅ Complete game recording
+Results land in `data/training_runs/` and appear on the admin page via `GET /api/training-runs`.
 
-**The system is production-ready and fully functional!**
+## Documentation
 
-## 📝 Notes
+- [docs/START_HERE.md](docs/START_HERE.md) — minimal run guide  
+- [docs/FEATURES.md](docs/FEATURES.md) — feature inventory  
+- [docs/engine_roles.md](docs/engine_roles.md) — C engine vs JS vs external UCI  
+- [docs/plans/](docs/plans/) — active implementation plans  
+- [docs/ROADMAP_CHECKLIST.md](docs/ROADMAP_CHECKLIST.md) — shipped vs pending checklist  
 
-- C Engine runs on backend (no browser limitations)
-- Automatic fallback to JS AI if engine fails
-- All games and brain data persist across sessions
-- Inspector provides real-time game analysis
-- Can be extended with more features easily
+## Upcoming
 
-**Enjoy your lightning-fast chess engine!** ⚡♟️
+See [Releases](https://github.com/xdutsuay/shatrunZ/releases) for versioned changelogs. Planned next:
+
+- **Strength benchmarks** — self-play quality metrics, not only throughput  
+- **Variant-native engines** — Fairy-Stockfish / WASM path for stronger default AI  
+- **Replay & PGN** — stricter round-trip and export edge cases  
+- **UI polish** — smoother move transitions and review mode  
+- **Engine depth** — quiescence, transposition table, optional NNUE-style eval  
+
+## License
+
+Engine and third-party components may carry their own licenses (see `docs/STOCKFISH.md`, `engine/third_party/`). Application code is maintained in this repo under the project’s stated terms.
