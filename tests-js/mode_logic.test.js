@@ -39,6 +39,7 @@ test('shouldTriggerAiMove gates autoplay correctly per mode', () => {
 test('shouldBlockHumanInput blocks correctly (core regression: HvC blocks only on AI turn)', () => {
     assert.equal(shouldBlockHumanInput({ mode: MODES.HVC, gameOver: false, autoRunning: false, isTraining: false, turn: COLORS.WHITE, computerSideValue: 'black' }), false);
     assert.equal(shouldBlockHumanInput({ mode: MODES.HVC, gameOver: false, autoRunning: false, isTraining: false, turn: COLORS.WHITE, computerSideValue: 'white' }), true);
+    assert.equal(shouldBlockHumanInput({ mode: MODES.HVC, gameOver: false, autoRunning: true, isTraining: false, turn: COLORS.WHITE, computerSideValue: 'black' }), false);
     assert.equal(shouldBlockHumanInput({ mode: MODES.CVC, gameOver: false, autoRunning: false, isTraining: false, turn: COLORS.WHITE, computerSideValue: 'white' }), true);
     assert.equal(shouldBlockHumanInput({ mode: MODES.HVH, gameOver: true, autoRunning: false, isTraining: false, turn: COLORS.WHITE, computerSideValue: 'white' }), true);
 });

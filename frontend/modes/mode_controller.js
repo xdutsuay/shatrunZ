@@ -32,6 +32,7 @@ export class ModeController {
     async triggerAiMove() {}
 
     startAuto() {
+        if (this.ctx?.isReviewing) return;
         this.autoRunning = true;
         this.ctx.syncAutoButtons();
         this.onStartAuto();

@@ -1,5 +1,6 @@
 import { initUI } from './ui.js';
 import { MODES } from './mode_logic.js';
+import { initAdmin } from './admin_main.js';
 
 const ROUTE_TO_MODE = {
     '/pvp': MODES.HVH,
@@ -12,8 +13,13 @@ function modeFromPath() {
     return ROUTE_TO_MODE[path] || null;
 }
 
-const mode = modeFromPath();
-if (mode) {
-    document.body.classList.add(`mode-${mode}`);
-    initUI(mode);
+const path = window.location.pathname.replace(/\/$/, '') || '/';
+if (path === '/admin') {
+    initAdmin();
+} else {
+    const mode = modeFromPath();
+    if (mode) {
+        document.body.classList.add(`mode-${mode}`);
+        initUI(mode);
+    }
 }

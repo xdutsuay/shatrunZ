@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 import sys
 import subprocess
+import re
 
 # Version helper
 from backend.version import get_repo_version
@@ -96,6 +97,10 @@ def home():
 def play_page():
     return send_from_directory(FRONTEND_DIR, 'play.html')
 
+@app.route('/admin')
+def admin_page():
+    return send_from_directory(FRONTEND_DIR, 'admin.html')
+
 
 @app.route('/models/<path:path>')
 def serve_models(path):
@@ -125,11 +130,6 @@ def ml_metrics():
         })
     with open(metrics_path, 'r', encoding='utf-8') as f:
         return jsonify(json.load(f))
-
-
-@app.route('/<path:path>')
-def serve_static(path):
-    return send_from_directory(FRONTEND_DIR, path)
 
 # Save PGN game
 @app.route('/api/save-game', methods=['POST'])
@@ -258,6 +258,33 @@ def health():
         'games_count': len(list(GAMES_DIR.glob('game_*.json'))),
         'brains_count': len(list(BRAINS_DIR.glob('brain_*_latest.json')))
     })
+
+
+@app.route('/api/training-runs', methods=['GET'])
+def training_runs():
+    runs_dir = DATA_DIR / 'training_runs'
+    if not runs_dir.exists():
+        return jsonify({'success': True, 'runs': []})
+
+    # Only accept simple filenames produced by our runner.
+    safe = re.compile(r'^[a-zA-Z0-9_.-]+$')
+    runs = []
+    for p in sorted(runs_dir.glob('run_*.json'), reverse=True):
+        if not safe.match(p.name):
+            continue
+        try:
+            with open(p, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            data['_file'] = p.name
+            runs.append(data)
+        except Exception:
+            continue
+    return jsonify({'success': True, 'runs': runs})
+
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return send_from_directory(FRONTEND_DIR, path)
 
 if __name__ == '__main__':
     import logging

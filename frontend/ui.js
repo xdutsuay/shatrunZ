@@ -11,12 +11,12 @@ import { ReplayStepController } from './shared/replay_step.js';
 import { explainMove } from './shared/move_explainer.js';
 import { loadPolicyMetrics, formatMetricsPanel } from './shared/policy_net.js';
 import { setHelpStatusText } from './shared/help_signal.js';
+import { ClockController, formatClock } from './shared/clock_controller.js';
+import { SettingsKeys, getSettings, setBool } from './shared/settings_store.js';
 import { PvpModeController } from './modes/pvp.js';
 import { PvaiModeController } from './modes/pvai.js';
 import { AivaiModeController, strategyFromSelect } from './modes/aivai.js';
 
-const HELP_KEY = 'shatrunz_enable_ai_help';
-const AUTO_HELP_KEY = 'shatrunz_ai_auto_help';
 const EXPLAIN_KEY = 'shatrunz_enable_move_explain';
 const POLICY_KEY = 'shatrunz_use_policy_net';
 
@@ -32,6 +32,7 @@ let isTraining = false;
 let selectedSq = null;
 let legalMoves = [];
 let replayController = null;
+let reviewState = null;
 
 const boardEl = document.getElementById('board');
 const statusEl = document.getElementById('status');
@@ -42,6 +43,8 @@ const moveListEl = document.getElementById('move-list');
 const opponentNameEl = document.getElementById('opponent-name');
 const playerNameEl = document.getElementById('player-name');
 const moveExplainEl = document.getElementById('move-explanation');
+
+const clock = new ClockController();
 
 function computerSideValue() {
     return document.getElementById('computer-side')?.value || 'black';
@@ -55,12 +58,46 @@ function getGame() {
     return session.game;
 }
 
+function isClockEnabled() {
+    return getSettings().enableClocks;
+}
+
+function getClockSettings() {
+    const s = getSettings();
+    return { totalMs: s.clockTotalMs, incrementMs: s.clockIncrementMs };
+}
+
+function bottomColor() {
+    if (currentMode === MODES.HVC) {
+        return computerSideValue() === 'white' ? COLORS.BLACK : COLORS.WHITE;
+    }
+    return COLORS.WHITE;
+}
+
+function renderClocks({ whiteMs, blackMs }) {
+    const playerEl = document.getElementById('player-time');
+    const oppEl = document.getElementById('opponent-time');
+    if (!playerEl || !oppEl) return;
+    if (!isClockEnabled()) return;
+    const bottom = bottomColor();
+    const bottomMs = bottom === COLORS.WHITE ? whiteMs : blackMs;
+    const topMs = bottom === COLORS.WHITE ? blackMs : whiteMs;
+    playerEl.textContent = formatClock(bottomMs);
+    oppEl.textContent = formatClock(topMs);
+}
+
 let session = new GameSession({
     pgnManager,
     getMode: () => currentMode,
     getAiState: () => ({ ai1, ai2, currentAI }),
     isAiTurnFn: isAiTurn,
 });
+
+session.onAfterMove = ({ sideMoved, nextTurn }) => {
+    if (!isClockEnabled()) return;
+    clock.onMoveMade(sideMoved, nextTurn);
+    clock.setTurn(nextTurn);
+};
 
 const ctx = {
     get game() { return session.game; },
@@ -70,6 +107,7 @@ const ctx = {
     pgnManager,
     session,
     get isTraining() { return isTraining; },
+    get isReviewing() { return reviewState != null; },
     statusEl,
     thinkEl,
     Rules,
@@ -87,6 +125,7 @@ const ctx = {
         updateStatus();
         updateMoveList();
         updateBrainStats();
+        updateLiveNavControls();
         syncHelpButton();
     },
     updateOpponentName,
@@ -106,6 +145,7 @@ const boardView = new BoardView({
     getGame,
     getSelection: () => ({ selectedSq, legalMoves }),
     onSquareClick: (r, c) => {
+        if (reviewState) return;
         if (modeController.onSquareClick(r, c)) return;
         if (modeController.shouldBlockInput()) return;
 
@@ -143,7 +183,13 @@ function refreshUiLocal() {
     updateStatus();
     updateMoveList();
     updateBrainStats();
+    updateLiveNavControls();
     syncHelpButton();
+    if (isClockEnabled()) {
+        const paused = isTraining || reviewState != null || getGame().gameOver || modeController?.helpMode;
+        clock.setPaused(paused);
+        clock.setTurn(getGame().turn);
+    }
 }
 
 Object.assign(ctx, {
@@ -205,7 +251,7 @@ function updateModePanels() {
 function isHelpEnabled() {
     const el = document.getElementById('enable-ai-help');
     if (el) return el.checked;
-    return localStorage.getItem(HELP_KEY) === '1';
+    return getSettings().enableHelp;
 }
 
 function isExplainEnabled() {
@@ -254,9 +300,9 @@ async function refreshMlMetrics() {
 
 export function initUI(initialMode = MODES.HVH) {
     const helpEl = document.getElementById('enable-ai-help');
-    if (helpEl) helpEl.checked = localStorage.getItem(HELP_KEY) === '1';
+    if (helpEl) helpEl.checked = getSettings().enableHelp;
     const autoHelpEl = document.getElementById('enable-ai-auto-help');
-    if (autoHelpEl) autoHelpEl.checked = localStorage.getItem(AUTO_HELP_KEY) === '1';
+    if (autoHelpEl) autoHelpEl.checked = getSettings().autoHelp;
     const sig = (id, key, def = true) => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -276,7 +322,15 @@ export function initUI(initialMode = MODES.HVH) {
     highlightModeNav(initialMode);
     setMode(initialMode);
     updateGameHistory();
+    updateLiveNavControls();
     refreshMlMetrics();
+
+    clock.onTick = renderClocks;
+    clock.onFlagFall = (fell) => {
+        modeController.stopAuto();
+        session.game.gameOver = true;
+        statusEl.innerText = `${fell === COLORS.WHITE ? 'White' : 'Black'} ran out of time.`;
+    };
 }
 
 function setModeControllers(mode) {
@@ -326,11 +380,11 @@ function setupEventListeners() {
     };
 
     document.getElementById('enable-ai-help')?.addEventListener('change', (e) => {
-        localStorage.setItem(HELP_KEY, e.target.checked ? '1' : '0');
+        setBool(SettingsKeys.enableHelp, e.target.checked);
         syncHelpButton();
     });
     document.getElementById('enable-ai-auto-help')?.addEventListener('change', (e) => {
-        localStorage.setItem(AUTO_HELP_KEY, e.target.checked ? '1' : '0');
+        setBool(SettingsKeys.autoHelp, e.target.checked);
     });
     document.getElementById('use-policy-net')?.addEventListener('change', (e) => {
         localStorage.setItem(POLICY_KEY, e.target.checked ? '1' : '0');
@@ -377,10 +431,26 @@ function setupEventListeners() {
         boardView.render();
         refreshUiLocal();
     };
+
+    document.getElementById('nav-start')?.addEventListener('click', () => liveNavTo(0));
+    document.getElementById('nav-back')?.addEventListener('click', () => liveNavTo(currentNavPly() - 1));
+    document.getElementById('nav-forward')?.addEventListener('click', () => liveNavTo(currentNavPly() + 1));
+    document.getElementById('nav-end')?.addEventListener('click', () => liveNavTo(tipNavPly()));
 }
 
 function onAivaiStrategyChange() {
     if (currentMode !== MODES.CVC) return;
+
+    const allowMidgame = getSettings().allowMidgamePersonaChange;
+    const inProgress = !replayController && session.uciMoveHistory.length > 0 && !getGame().gameOver;
+    if (!allowMidgame && inProgress) {
+        const w = document.getElementById('white-ai-strategy');
+        const b = document.getElementById('black-ai-strategy');
+        if (w) w.value = ai1.getStrategyName().toLowerCase();
+        if (b) b.value = ai2.getStrategyName().toLowerCase();
+        return;
+    }
+
     rebuildAivaiPlayers();
     updateOpponentName();
     refreshUiLocal();
@@ -417,6 +487,81 @@ function updateMoveList() {
     moveListEl.textContent = help ? `${moves}\n\n— ${help}` : moves;
 }
 
+function tipNavPly() {
+    return reviewState ? reviewState.liveUci.length : session.uciMoveHistory.length;
+}
+
+function currentNavPly() {
+    return reviewState ? reviewState.controller.ply : session.uciMoveHistory.length;
+}
+
+function updateLiveNavControls() {
+    const label = document.getElementById('nav-ply-label');
+    const startBtn = document.getElementById('nav-start');
+    const backBtn = document.getElementById('nav-back');
+    const fwdBtn = document.getElementById('nav-forward');
+    const endBtn = document.getElementById('nav-end');
+
+    const cur = currentNavPly();
+    const tip = tipNavPly();
+
+    if (label) label.textContent = `${cur} / ${tip}`;
+    if (startBtn) startBtn.disabled = cur <= 0;
+    if (backBtn) backBtn.disabled = cur <= 0;
+    if (fwdBtn) fwdBtn.disabled = cur >= tip;
+    if (endBtn) endBtn.disabled = cur >= tip;
+}
+
+function enterReview(ply) {
+    const liveUci = [...session.uciMoveHistory];
+    reviewState = {
+        liveGame: session.game,
+        liveUci,
+        controller: new ReplayStepController(liveUci),
+    };
+    reviewState.controller.stepTo(ply);
+    session.game = reviewState.controller.game;
+    session.uciMoveHistory = reviewState.controller.uciHistory;
+}
+
+function applyReviewFrame() {
+    if (!reviewState) return;
+    session.game = reviewState.controller.game;
+    session.uciMoveHistory = reviewState.controller.uciHistory;
+    session.game.gameOver = reviewState.controller.ply >= reviewState.controller.maxPly;
+    clearSelectionLocal();
+    boardView.render();
+    refreshUiLocal();
+    updateLiveNavControls();
+    statusEl.innerText = `Review: ${reviewState.controller.ply} / ${reviewState.controller.maxPly}`;
+}
+
+function exitReview() {
+    if (!reviewState) return;
+    session.game = reviewState.liveGame;
+    session.uciMoveHistory = [...reviewState.liveUci];
+    reviewState = null;
+    boardView.render();
+    refreshUiLocal();
+    updateLiveNavControls();
+}
+
+function liveNavTo(targetPly) {
+    const tip = tipNavPly();
+    const ply = Math.max(0, Math.min(targetPly, tip));
+    modeController.stopAuto();
+    if (ply === tip) {
+        exitReview();
+        return;
+    }
+    if (!reviewState) {
+        enterReview(ply);
+    } else {
+        reviewState.controller.stepTo(ply);
+    }
+    applyReviewFrame();
+}
+
 function updateOpponentName() {
     if (!opponentNameEl) return;
     if (currentMode === MODES.CVC) {
@@ -437,7 +582,7 @@ function updateMoveTime(color, timeSeconds) {
     const timeEl = color === COLORS.WHITE
         ? document.getElementById('player-time')
         : document.getElementById('opponent-time');
-    if (timeEl) timeEl.textContent = `${timeSeconds}s`;
+    if (!isClockEnabled() && timeEl) timeEl.textContent = `${timeSeconds}s`;
 }
 
 ctx.updateMoveTime = updateMoveTime;
@@ -461,6 +606,7 @@ ctx.maybeExplainMove = maybeExplainMove;
 
 async function handleGameEnd(status) {
     modeController.stopAuto();
+    clock.setPaused(true);
     await session.handleGameEnd(status, {
         onAfterEnd: () => {
             refreshUiLocal();
@@ -491,7 +637,9 @@ function setMode(mode) {
 
 function resetGame() {
     exitReplay();
+    exitReview();
     modeController.stopAuto();
+    clock.stop();
     session.abandonBrains();
     session.reset();
     clearSelectionLocal();
@@ -507,11 +655,26 @@ function resetGame() {
     pgnManager.startNewGame(whiteName, blackName, currentMode);
     boardView.render();
     refreshUiLocal();
+    updateLiveNavControls();
+    if (isClockEnabled()) {
+        const { totalMs, incrementMs } = getClockSettings();
+        clock.reset({ totalMs, incrementMs, turn: session.game.turn });
+        clock.setPaused(false);
+    }
     if (moveExplainEl) moveExplainEl.textContent = '';
 }
 
 function handleLevelChange(e) {
     const level = parseInt(e.target.value, 10);
+
+    const allowMidgame = getSettings().allowMidgamePersonaChange;
+    const inProgress = currentMode === MODES.CVC && !replayController && session.uciMoveHistory.length > 0 && !getGame().gameOver;
+    if (!allowMidgame && inProgress) {
+        e.target.value = String(ai1.level);
+        document.getElementById('ai-level-label').innerText = ai1.level;
+        return;
+    }
+
     document.getElementById('ai-level-label').innerText = level;
     if (currentMode === MODES.CVC) rebuildAivaiPlayers();
     else if (currentMode === MODES.HVC) rebuildPvaiPlayer();
@@ -587,6 +750,7 @@ function loadSelectedGame() {
 
 function startReplay(uciMoves, meta = {}) {
     modeController.stopAuto();
+    exitReview();
     replayController = new ReplayStepController(uciMoves);
     applyReplayFrame(meta);
 }
@@ -607,12 +771,14 @@ function applyReplayFrame(meta = {}) {
         ? `Replay: ${meta.white} vs ${meta.black} (${meta.result || '*'})`
         : 'Replay mode';
     statusEl.innerText = title;
+    updateLiveNavControls();
 }
 
 function exitReplay() {
     replayController = null;
     const controls = document.getElementById('replay-controls');
     if (controls) controls.style.display = 'none';
+    updateLiveNavControls();
 }
 
 function replayStepTo(ply) {

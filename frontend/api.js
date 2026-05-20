@@ -4,6 +4,8 @@
 // - Use a relative base URL so this works on localhost *and* when hosted behind a domain/reverse-proxy.
 const API_BASE = '/api';
 
+const DEFAULT_TIMEOUT_MS = 8000;
+
 export class BackendAPI {
     static async saveGame(gameData) {
         try {
@@ -69,11 +71,15 @@ export class BackendAPI {
 
     static async getEngineMove(moves = [], depth = 5, randomness = 0, fen = null) {
         try {
+            const controller = new AbortController();
+            const t = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
             const response = await fetch(`${API_BASE}/engine-move`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ moves, depth, randomness, fen })
+                body: JSON.stringify({ moves, depth, randomness, fen }),
+                signal: controller.signal,
             });
+            clearTimeout(t);
             return await response.json();
         } catch (error) {
             console.error('Failed to get engine move:', error);

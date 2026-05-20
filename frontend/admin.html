@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ShatrunZ — Admin</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+
+<body class="admin-page">
+    <div class="main-layout">
+        <div class="left-panel">
+            <div class="panel-section">
+                <div class="section-header">
+                    <h3>Persona stats</h3>
+                </div>
+                <div id="admin-persona-stats" class="move-list">Loading…</div>
+            </div>
+            <div class="panel-section">
+                <div class="section-header">
+                    <h3>Training runs</h3>
+                </div>
+                <div id="admin-training-runs" class="move-list">Loading…</div>
+            </div>
+        </div>
+
+        <div class="board-area">
+            <div class="panel-section">
+                <div class="section-header">
+                    <h3>Admin</h3>
+                    <a class="btn secondary small" href="/pvai">Back to play</a>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="admin-allow-midgame-persona">
+                        Allow mid-game persona changes (AIvAI)
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="admin-enable-clocks">
+                        Enable clocks
+                    </label>
+                </div>
+
+                <div class="control-group">
+                    <label>Total time (minutes)</label>
+                    <input id="admin-clock-total-min" type="number" min="0" step="1" value="0">
+                </div>
+
+                <div class="control-group">
+                    <label>Increment (seconds)</label>
+                    <input id="admin-clock-increment-sec" type="number" min="0" step="1" value="0">
+                </div>
+
+                <button id="admin-save" class="btn primary full-width">Save settings</button>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1>ShatrunZ <span class="version">Admin</span></h1>
+            </div>
+
+            <nav class="mode-nav" aria-label="Admin navigation">
+                <a href="/" class="mode-nav-link">Home</a>
+                <a href="/pvai" class="mode-nav-link">Play</a>
+            </nav>
+
+            <div class="panel-section">
+                <h3>Status</h3>
+                <div id="admin-status" class="move-list">Ready.</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+</body>
+
+</html>
+

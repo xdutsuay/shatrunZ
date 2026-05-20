@@ -13,6 +13,7 @@ export class GameSession {
         this.isAiTurnFn = isAiTurnFn;
         this.game = new Game();
         this.uciMoveHistory = [];
+        this.onAfterMove = null;
     }
 
     reset() {
@@ -66,7 +67,9 @@ export class GameSession {
         const isCheckmate = status.over && isCheck;
 
         this.pgnManager.recordMove(from, to, piece, captured, isCheck, isCheckmate);
-        return { piece, captured, isCheck, isCheckmate, status, uci };
+        const record = { piece, captured, isCheck, isCheckmate, status, uci, sideMoved, nextTurn: this.game.turn };
+        this.onAfterMove?.(record);
+        return record;
     }
 
     async handleGameEnd(status, { onAfterEnd } = {}) {

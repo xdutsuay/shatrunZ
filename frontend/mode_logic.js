@@ -12,9 +12,10 @@ export function isAiTurn({ turn, computerSideValue }) {
 }
 
 export function shouldBlockHumanInput({ mode, gameOver, autoRunning, isTraining, turn, computerSideValue }) {
-    if (gameOver || autoRunning || isTraining) return true;
+    if (gameOver || isTraining) return true;
     if (mode === MODES.CVC) return true;
-    if (mode === MODES.HVC && isAiTurn({ turn, computerSideValue })) return true;
+    if (mode === MODES.HVC) return isAiTurn({ turn, computerSideValue });
+    // HvH blocks only when game over or training; autoRunning is irrelevant.
     return false;
 }
 

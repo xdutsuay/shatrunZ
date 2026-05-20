@@ -4,6 +4,8 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.python-version
+data/training_runs/
 .venv/
 
 # Build artifacts
