@@ -46,9 +46,9 @@ This file is the shared handoff for continuing work on `shatrunZ` with limited C
 |-------------|-------------|--------|
 | `data/**` (self-play, insights, brains) | **WRITE** (local only, gitignored) | **no touch** |
 | `frontend/`, `backend/`, `engine/`, `tools/` | read-only | **WRITE** only if merge/import bug |
-| `COORDINATION.md` | Work Log append only | full sync + Multi-IDE section |
+| `docs/COORDINATION.md` | Work Log append only | full sync + Multi-IDE section |
 | `VERSION`, `scripts/package_release.sh`, git tag/push | **no touch** | **WRITE** |
-| `NEXT_STEPS.md`, `docs/position_api.md` | read-only | update after Phase C if needed |
+| `docs/NEXT_STEPS.md`, `docs/position_api.md` | read-only | update after Phase C if needed |
 
 ### Work Log
 

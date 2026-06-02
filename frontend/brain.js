@@ -1,16 +1,69 @@
 import { BOARD_SIZE, COLORS, PIECES, WEIGHTS } from './constants.js';
+import { legacyBrainNamesForPersona } from './shared/persona.js';
 
 // --- Game Brain with Persistent Storage ---
 export class GameBrain {
     constructor(name = 'default') {
         this.name = name;
         this.memoryKey = `shatrunz_brain_${name}_v3`;
+        this.migrateLegacyPersonaKeys();
         this.memory = this.loadMemory();
         this.valueKey = `shatrunz_value_${name}_v1`;
         this.values = this.loadValues(); // position hash -> value
         this.history = [];
         this.positionTrace = []; // position hashes for value learning
         this.stats = this.loadStats();
+    }
+
+    migrateLegacyPersonaKeys() {
+        if (!this.name.startsWith('persona_')) return;
+        const legacy = legacyBrainNamesForPersona(this.name);
+        if (legacy.length === 0) return;
+
+        let memory = this._readJson(this.memoryKey, {});
+        let values = this._readJson(this.valueKey, {});
+        let stats = this._readJson(`${this.memoryKey}_stats`, { wins: 0, losses: 0, draws: 0, games: 0 });
+
+        for (const oldName of legacy) {
+            const oldMemKey = `shatrunz_brain_${oldName}_v3`;
+            const oldValKey = `shatrunz_value_${oldName}_v1`;
+            const oldStatsKey = `${oldMemKey}_stats`;
+            const om = this._readJson(oldMemKey, {});
+            const ov = this._readJson(oldValKey, {});
+            const os = this._readJson(oldStatsKey, null);
+            for (const [h, moves] of Object.entries(om)) {
+                if (!memory[h]) memory[h] = {};
+                for (const [m, v] of Object.entries(moves)) {
+                    memory[h][m] = (memory[h][m] || 0) + v;
+                }
+            }
+            for (const [h, v] of Object.entries(ov)) {
+                values[h] = (values[h] || 0) + v;
+            }
+            if (os) {
+                stats.wins += os.wins || 0;
+                stats.losses += os.losses || 0;
+                stats.draws += os.draws || 0;
+                stats.games += os.games || 0;
+            }
+        }
+
+        try {
+            localStorage.setItem(this.memoryKey, JSON.stringify(memory));
+            localStorage.setItem(`${this.memoryKey}_stats`, JSON.stringify(stats));
+            localStorage.setItem(this.valueKey, JSON.stringify(values));
+        } catch (e) {
+            console.warn('Persona migration save failed:', e);
+        }
+    }
+
+    _readJson(key, fallback) {
+        try {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : fallback;
+        } catch {
+            return fallback;
+        }
     }
 
     loadMemory() {

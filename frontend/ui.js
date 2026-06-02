@@ -6,13 +6,23 @@ import { MODES, isAiTurn as isAiTurnFor } from './mode_logic.js';
 import { GameSession } from './shared/game_session.js';
 import { BoardView } from './shared/board_view.js';
 import { brainNameFor } from './shared/brain_utils.js';
+import {
+    formatEvalPawns,
+    engineStatusLabel,
+    depthForLevel,
+} from './shared/persona.js';
+import { getSettings } from './shared/settings_store.js';
+import { getEnginePersonaForSide, setClockProvider } from './shared/engine_move.js';
+import { evaluatePositionWhite, evaluateGameOverDisplay } from './shared/eval_core.js';
+import { strategyForPersona } from './shared/engine_move.js';
 import { replayGameFromUci } from './shared/replay.js';
 import { ReplayStepController } from './shared/replay_step.js';
 import { explainMove } from './shared/move_explainer.js';
+import { buildMoveListHtml } from './shared/move_list.js';
 import { loadPolicyMetrics, formatMetricsPanel } from './shared/policy_net.js';
 import { setHelpStatusText } from './shared/help_signal.js';
 import { ClockController, formatClock } from './shared/clock_controller.js';
-import { SettingsKeys, getSettings, setBool } from './shared/settings_store.js';
+import { SettingsKeys, setBool, setNum } from './shared/settings_store.js';
 import { PvpModeController } from './modes/pvp.js';
 import { PvaiModeController } from './modes/pvai.js';
 import { AivaiModeController, strategyFromSelect } from './modes/aivai.js';
@@ -23,8 +33,8 @@ const POLICY_KEY = 'shatrunz_use_policy_net';
 let currentMode = MODES.HVH;
 let modeController;
 
-let ai1 = new AIPlayer(3, 'material', 'material_ai');
-let ai2 = new AIPlayer(3, 'positional', 'positional_ai');
+let ai1 = new AIPlayer(3, 'material', 'persona_material');
+let ai2 = new AIPlayer(3, 'positional', 'persona_positional');
 let currentAI = ai1;
 
 let pgnManager = new PGNManager();
@@ -37,7 +47,8 @@ let reviewState = null;
 const boardEl = document.getElementById('board');
 const statusEl = document.getElementById('status');
 const scoreEl = document.getElementById('scoreboard');
-const brainStatsEl = document.getElementById('brain-stats');
+const evalDisplayEl = document.getElementById('eval-display');
+const engineStatusEl = document.getElementById('engine-status');
 const thinkEl = document.getElementById('thinking-indicator');
 const moveListEl = document.getElementById('move-list');
 const opponentNameEl = document.getElementById('opponent-name');
@@ -124,7 +135,6 @@ const ctx = {
     refreshUi: () => {
         updateStatus();
         updateMoveList();
-        updateBrainStats();
         updateLiveNavControls();
         syncHelpButton();
     },
@@ -132,7 +142,6 @@ const ctx = {
     updateModePanels,
     rebuildAivaiPlayers,
     rebuildPvaiPlayer,
-    rebuildTrainingPlayers,
     syncAutoButtons,
     syncHelpButton,
     onGameEnd: handleGameEnd,
@@ -182,50 +191,62 @@ function clearSelectionLocal() {
 function refreshUiLocal() {
     updateStatus();
     updateMoveList();
-    updateBrainStats();
     updateLiveNavControls();
     syncHelpButton();
     if (isClockEnabled()) {
-        const paused = isTraining || reviewState != null || getGame().gameOver || modeController?.helpMode;
+        const aiMode = currentMode === MODES.CVC || currentMode === MODES.HVC;
+        const waitForStart = aiMode && !modeController?.autoRunning;
+        const paused = isTraining || reviewState != null || getGame().gameOver
+            || modeController?.helpMode || waitForStart;
         clock.setPaused(paused);
         clock.setTurn(getGame().turn);
+        if (waitForStart) renderClocks({ whiteMs: clock.whiteMs, blackMs: clock.blackMs });
     }
+}
+
+function startClocks() {
+    if (!isClockEnabled()) return;
+    const { totalMs, incrementMs } = getClockSettings();
+    clock.reset({ totalMs, incrementMs, turn: session.game.turn, startPaused: false });
+    clock.setTurn(session.game.turn);
 }
 
 Object.assign(ctx, {
     clearSelection: clearSelectionLocal,
     refreshUi: refreshUiLocal,
+    startClocks,
 });
 
 modeController = new PvpModeController(ctx);
 modeController.ctx = ctx;
 
 function aiLevel() {
-    return parseInt(document.getElementById('ai-level')?.value || '3', 10);
+    const fromDom = document.getElementById('ai-level')?.value;
+    if (fromDom != null) return parseInt(fromDom, 10);
+    return getSettings().aiLevel || 3;
 }
 
 function rebuildAivaiPlayers() {
     const level = aiLevel();
     const s1 = strategyFromSelect('white');
     const s2 = strategyFromSelect('black');
-    ai1 = new AIPlayer(level, s1, brainNameFor({ mode: 'cvc', role: 'white', strategy: s1 }));
-    ai2 = new AIPlayer(level, s2, brainNameFor({ mode: 'cvc', role: 'black', strategy: s2 }));
+    ai1 = new AIPlayer(level, s1, brainNameFor({ strategy: s1 }));
+    ai2 = new AIPlayer(level, s2, brainNameFor({ strategy: s2 }));
+    ai1.setStrategy(s1);
+    ai2.setStrategy(s2);
+    ai1.setLevel(level);
+    ai2.setLevel(level);
     currentAI = ai1;
     syncAiRefs();
 }
 
 function rebuildPvaiPlayer() {
     const level = aiLevel();
-    const strategy = (document.getElementById('ai-strategy')?.value || 'material').toLowerCase();
-    currentAI = new AIPlayer(level, strategy, brainNameFor({ mode: 'hvc', role: 'solo', strategy }));
-    rebuildTrainingPlayers();
-    syncAiRefs();
-}
-
-function rebuildTrainingPlayers() {
-    const level = aiLevel();
-    ai1 = new AIPlayer(level, 'material', brainNameFor({ mode: 'training', role: 'white', strategy: 'material' }));
-    ai2 = new AIPlayer(level, 'positional', brainNameFor({ mode: 'training', role: 'black', strategy: 'positional' }));
+    const pid = getEnginePersonaForSide('solo');
+    const jsStrategy = pid === 'c_native' ? 'material' : pid;
+    currentAI = new AIPlayer(level, jsStrategy, brainNameFor({ strategy: pid, personaId: pid }));
+    currentAI.setStrategy(pid === 'c_native' ? 'c_native' : pid);
+    currentAI.setLevel(level);
     syncAiRefs();
 }
 
@@ -237,13 +258,9 @@ function syncAiRefs() {
 
 ctx.rebuildAivaiPlayers = rebuildAivaiPlayers;
 ctx.rebuildPvaiPlayer = rebuildPvaiPlayer;
-ctx.rebuildTrainingPlayers = rebuildTrainingPlayers;
-
 function updateModePanels() {
-    const pvaiOnly = document.getElementById('pvai-only-controls');
     const aivaiOnly = document.getElementById('aivai-only-controls');
     const playAs = document.getElementById('play-as-group');
-    if (pvaiOnly) pvaiOnly.style.display = currentMode === MODES.HVC ? '' : 'none';
     if (aivaiOnly) aivaiOnly.style.display = currentMode === MODES.CVC ? '' : 'none';
     if (playAs) playAs.style.display = currentMode === MODES.HVC ? '' : 'none';
 }
@@ -257,7 +274,7 @@ function isHelpEnabled() {
 function isExplainEnabled() {
     const el = document.getElementById('enable-move-explain');
     if (el) return el.checked;
-    return localStorage.getItem(EXPLAIN_KEY) === '1';
+    return getSettings().enableMoveExplain;
 }
 
 function syncHelpButton() {
@@ -299,6 +316,10 @@ async function refreshMlMetrics() {
 }
 
 export function initUI(initialMode = MODES.HVH) {
+    setClockProvider(() => ({
+        clock,
+        incrementMs: getClockSettings().incrementMs,
+    }));
     const helpEl = document.getElementById('enable-ai-help');
     if (helpEl) helpEl.checked = getSettings().enableHelp;
     const autoHelpEl = document.getElementById('enable-ai-auto-help');
@@ -323,7 +344,7 @@ export function initUI(initialMode = MODES.HVH) {
     setMode(initialMode);
     updateGameHistory();
     updateLiveNavControls();
-    refreshMlMetrics();
+    if (document.getElementById('ml-metrics-panel')) refreshMlMetrics();
 
     clock.onTick = renderClocks;
     clock.onFlagFall = (fell) => {
@@ -348,28 +369,20 @@ function highlightModeNav(mode) {
 }
 
 function setupEventListeners() {
-    document.getElementById('btn-undo').onclick = () => modeController.onUndo();
-    document.getElementById('reset-game').onclick = resetGame;
+    document.getElementById('btn-undo')?.addEventListener('click', () => modeController.onUndo());
+    document.getElementById('reset-game')?.addEventListener('click', resetGame);
 
-    document.getElementById('ai-level').oninput = handleLevelChange;
-    document.getElementById('ai-strategy').onchange = () => {
-        if (currentMode === MODES.HVC) {
-            rebuildPvaiPlayer();
-            updateOpponentName();
-            refreshUiLocal();
-        }
-    };
     document.getElementById('white-ai-strategy')?.addEventListener('change', onAivaiStrategyChange);
     document.getElementById('black-ai-strategy')?.addEventListener('change', onAivaiStrategyChange);
-    document.getElementById('computer-side').onchange = () => {
+    document.getElementById('computer-side')?.addEventListener('change', () => {
         if (modeController.autoRunning && !getGame().gameOver && currentMode === MODES.HVC) {
             modeController.triggerAiMove();
         }
-    };
+    });
 
-    document.getElementById('start-auto').onclick = () => modeController.startAuto();
-    document.getElementById('stop-auto').onclick = () => modeController.stopAuto();
-    document.getElementById('btn-help-ai').onclick = () => {
+    document.getElementById('start-auto')?.addEventListener('click', () => modeController.startAuto());
+    document.getElementById('stop-auto')?.addEventListener('click', () => modeController.stopAuto());
+    document.getElementById('btn-help-ai')?.addEventListener('click', () => {
         if (modeController.helpMode) {
             modeController.helpMode = false;
             modeController.resumeAfterHelp();
@@ -377,60 +390,9 @@ function setupEventListeners() {
             modeController.pauseForHelp('');
             setHelpStatusText(statusEl, getGame().turn, '');
         }
-    };
-
-    document.getElementById('enable-ai-help')?.addEventListener('change', (e) => {
-        setBool(SettingsKeys.enableHelp, e.target.checked);
-        syncHelpButton();
-    });
-    document.getElementById('enable-ai-auto-help')?.addEventListener('change', (e) => {
-        setBool(SettingsKeys.autoHelp, e.target.checked);
-    });
-    document.getElementById('use-policy-net')?.addEventListener('change', (e) => {
-        localStorage.setItem(POLICY_KEY, e.target.checked ? '1' : '0');
-    });
-    const bindHelpSignal = (id, key) => {
-        document.getElementById(id)?.addEventListener('change', (e) => {
-            localStorage.setItem(key, e.target.checked ? '1' : '0');
-        });
-    };
-    bindHelpSignal('help-signal-eval', 'shatrunz_help_eval_swing');
-    bindHelpSignal('help-signal-margin', 'shatrunz_help_low_margin');
-    bindHelpSignal('help-signal-unknown', 'shatrunz_help_unknown');
-    bindHelpSignal('help-signal-repeat', 'shatrunz_help_repeat');
-    document.getElementById('enable-move-explain')?.addEventListener('change', (e) => {
-        localStorage.setItem(EXPLAIN_KEY, e.target.checked ? '1' : '0');
-        if (!e.target.checked && moveExplainEl) moveExplainEl.textContent = '';
     });
 
-    document.getElementById('reset-brain').onclick = resetBrain;
-    document.getElementById('export-brain').onclick = exportBrain;
-    document.getElementById('import-brain').onclick = () => document.getElementById('brain-file').click();
-    document.getElementById('brain-file').onchange = importBrain;
-
-    document.getElementById('export-pgn').onclick = () => pgnManager.exportCurrentGame();
-    document.getElementById('load-game').onclick = loadSelectedGame;
-    document.getElementById('clear-history').onclick = clearHistory;
-    document.getElementById('import-pgn')?.addEventListener('click', () => {
-        document.getElementById('pgn-file')?.click();
-    });
-    document.getElementById('pgn-file')?.addEventListener('change', importPgnFile);
-    document.getElementById('replay-start')?.addEventListener('click', () => replayStepTo(0));
-    document.getElementById('replay-back')?.addEventListener('click', () => replayStepBack());
-    document.getElementById('replay-forward')?.addEventListener('click', () => replayStepForward());
-    document.getElementById('replay-end')?.addEventListener('click', () => {
-        if (replayController) replayStepTo(replayController.maxPly);
-    });
-
-    document.getElementById('btn-hyper-train').onclick = hyperTrain;
-    document.getElementById('cancel-train').onclick = () => {
-        isTraining = false;
-        modeController.stopAuto();
-        const overlay = document.getElementById('training-overlay');
-        if (overlay) overlay.style.display = 'none';
-        boardView.render();
-        refreshUiLocal();
-    };
+    document.getElementById('export-pgn')?.addEventListener('click', () => pgnManager.exportCurrentGame());
 
     document.getElementById('nav-start')?.addEventListener('click', () => liveNavTo(0));
     document.getElementById('nav-back')?.addEventListener('click', () => liveNavTo(currentNavPly() - 1));
@@ -446,8 +408,8 @@ function onAivaiStrategyChange() {
     if (!allowMidgame && inProgress) {
         const w = document.getElementById('white-ai-strategy');
         const b = document.getElementById('black-ai-strategy');
-        if (w) w.value = ai1.getStrategyName().toLowerCase();
-        if (b) b.value = ai2.getStrategyName().toLowerCase();
+        if (w) w.value = ai1.getStrategyKey();
+        if (b) b.value = ai2.getStrategyKey();
         return;
     }
 
@@ -457,34 +419,26 @@ function onAivaiStrategyChange() {
 }
 
 function updateBrainStats() {
-    if (!brainStatsEl) return;
-    const stats1 = ai1.brain.getStats();
-    const stats2 = ai2.brain.getStats();
-    const size1 = ai1.brain.getMemorySize();
-    const size2 = ai2.brain.getMemorySize();
+    // Stats live on Admin → Stats tab (persona keys, not per-side duplicates).
+}
 
-    brainStatsEl.innerHTML = `
-        <div>
-            <strong>${ai1.getStrategyName()} AI</strong><br>
-            Positions: ${size1}<br>
-            Record: ${stats1.wins}W-${stats1.losses}L-${stats1.draws}D<br>
-            Games: ${stats1.games}
-        </div>
-        <motionless></motionless>
-        <div>
-            <strong>${ai2.getStrategyName()} AI</strong><br>
-            Positions: ${size2}<br>
-            Record: ${stats2.wins}W-${stats2.losses}L-${stats2.draws}D<br>
-            Games: ${stats2.games}
-        </div>
-    `;
+function getDisplayGame() {
+    if (pgnManager.currentGame) return pgnManager.currentGame;
+    if (pgnManager.games?.length) return pgnManager.games[0];
+    return null;
 }
 
 function updateMoveList() {
     if (!moveListEl) return;
-    const moves = pgnManager.getFormattedMoves() || 'No moves yet';
-    const help = pgnManager.getHelpSummary();
-    moveListEl.textContent = help ? `${moves}\n\n— ${help}` : moves;
+    const game = getDisplayGame();
+    if (!game?.moves?.length) {
+        moveListEl.innerHTML = '<div class="move-empty">No moves yet</div>';
+        return;
+    }
+    const curPly = currentNavPly();
+    const help = pgnManager.getHelpSummary(game);
+    const helpHtml = help ? `<div class="move-help-note">— ${help}</div>` : '';
+    moveListEl.innerHTML = buildMoveListHtml(game, curPly) + helpHtml;
 }
 
 function tipNavPly() {
@@ -615,13 +569,54 @@ async function handleGameEnd(status) {
     });
 }
 
+function personaKeyForDisplay(game) {
+    if (currentMode === MODES.HVC) {
+        return strategyForPersona(getEnginePersonaForSide('solo'));
+    }
+    if (currentMode === MODES.CVC) {
+        const pid = getEnginePersonaForSide(game.turn === COLORS.WHITE ? 'white' : 'black');
+        return strategyForPersona(pid);
+    }
+    return 'material';
+}
+
 function updateStatus() {
     const game = getGame();
     const status = game.checkStatus();
     statusEl.innerText = status.msg;
-    const score = game.getScore();
-    const txt = score === 0 ? 'Equal' : (score > 0 ? `White +${score}` : `Black +${Math.abs(score)}`);
-    scoreEl.innerText = `Material: ${txt}`;
+    const materialCp = game.getScore();
+    const evalEl = document.getElementById('eval-display');
+    const engineEl = document.getElementById('engine-status');
+
+    const personaKey = personaKeyForDisplay(game);
+    let evalCpWhite = evaluatePositionWhite(game.board, personaKey);
+    if (status.over && status.winner != null) {
+        evalCpWhite = evaluateGameOverDisplay(status.winner);
+    }
+
+    if (evalEl) {
+        evalEl.textContent = formatEvalPawns(evalCpWhite);
+        evalEl.classList.toggle('eval-negative', evalCpWhite < 0);
+    }
+    if (scoreEl) {
+        const txt = materialCp === 0 ? 'Equal' : formatEvalPawns(materialCp);
+        scoreEl.innerText = `Material: ${txt}`;
+    }
+    if (engineEl) {
+        const pid = currentMode === MODES.HVC
+            ? getEnginePersonaForSide('solo')
+            : getEnginePersonaForSide(game.turn === COLORS.WHITE ? 'white' : 'black');
+        engineEl.textContent = engineStatusLabel({
+            personaId: pid,
+            level: aiLevel(),
+            depth: depthForLevel(aiLevel()),
+        });
+    }
+    const evalBar = document.getElementById('eval-bar');
+    if (evalBar) {
+        const pct = Math.max(0, Math.min(100, 50 + (evalCpWhite / 40)));
+        evalBar.style.height = `${pct}%`;
+    }
 }
 
 function setMode(mode) {
@@ -646,7 +641,6 @@ function resetGame() {
 
     if (currentMode === MODES.CVC) rebuildAivaiPlayers();
     else if (currentMode === MODES.HVC) rebuildPvaiPlayer();
-    else rebuildTrainingPlayers();
 
     const whiteName = currentMode === MODES.CVC ? `${ai1.getStrategyName()} AI` : 'White';
     const blackName = currentMode === MODES.CVC ? `${ai2.getStrategyName()} AI`
@@ -658,27 +652,29 @@ function resetGame() {
     updateLiveNavControls();
     if (isClockEnabled()) {
         const { totalMs, incrementMs } = getClockSettings();
-        clock.reset({ totalMs, incrementMs, turn: session.game.turn });
-        clock.setPaused(false);
+        clock.reset({ totalMs, incrementMs, turn: session.game.turn, startPaused: true });
+        renderClocks({ whiteMs: clock.whiteMs, blackMs: clock.blackMs });
     }
     if (moveExplainEl) moveExplainEl.textContent = '';
 }
 
 function handleLevelChange(e) {
-    const level = parseInt(e.target.value, 10);
+    const level = parseInt(e?.target?.value ?? aiLevel(), 10);
+    setNum(SettingsKeys.aiLevel, level);
 
     const allowMidgame = getSettings().allowMidgamePersonaChange;
     const inProgress = currentMode === MODES.CVC && !replayController && session.uciMoveHistory.length > 0 && !getGame().gameOver;
-    if (!allowMidgame && inProgress) {
+    if (!allowMidgame && inProgress && e?.target) {
         e.target.value = String(ai1.level);
-        document.getElementById('ai-level-label').innerText = ai1.level;
+        const lbl = document.getElementById('ai-level-label');
+        if (lbl) lbl.innerText = ai1.level;
         return;
     }
 
-    document.getElementById('ai-level-label').innerText = level;
+    const lbl = document.getElementById('ai-level-label');
+    if (lbl) lbl.innerText = level;
     if (currentMode === MODES.CVC) rebuildAivaiPlayers();
     else if (currentMode === MODES.HVC) rebuildPvaiPlayer();
-    else rebuildTrainingPlayers();
     refreshUiLocal();
 }
 
@@ -820,81 +816,6 @@ function clearHistory() {
     if (confirm('Clear all game history?')) {
         pgnManager.clearHistory();
         updateGameHistory();
-    }
-}
-
-function endHyperTrainSession({ overlay, oldLevel }) {
-    isTraining = false;
-    if (overlay) overlay.style.display = 'none';
-    if (oldLevel != null) {
-        ai1.setLevel(oldLevel);
-        ai2.setLevel(oldLevel);
-    }
-    if (currentMode === MODES.CVC) rebuildAivaiPlayers();
-    else if (currentMode === MODES.HVC) rebuildPvaiPlayer();
-    else rebuildTrainingPlayers();
-    boardView.render();
-    refreshUiLocal();
-}
-
-async function hyperTrain() {
-    if (isTraining) return;
-    isTraining = true;
-    modeController.stopAuto();
-
-    const overlay = document.getElementById('training-overlay');
-    const bar = document.getElementById('train-progress');
-    const status = document.getElementById('train-status');
-    if (overlay) overlay.style.display = 'flex';
-
-    const GAMES_TO_TRAIN = 50;
-    const oldLevel = ai1.level;
-    rebuildTrainingPlayers();
-    ai1.setLevel(2);
-    ai2.setLevel(2);
-
-    try {
-        for (let i = 1; i <= GAMES_TO_TRAIN && isTraining; i++) {
-            session.reset();
-            pgnManager.startNewGame(
-                `${ai1.getStrategyName()} AI`,
-                `${ai2.getStrategyName()} AI`,
-                'training'
-            );
-            let moves = 0;
-
-            if (status) status.innerText = `Game ${i}/${GAMES_TO_TRAIN}`;
-            if (bar) bar.style.width = `${(i / GAMES_TO_TRAIN) * 100}%`;
-
-            while (!session.game.gameOver && moves < 150 && isTraining) {
-                const aiToUse = session.game.turn === COLORS.WHITE ? ai1 : ai2;
-                const m = await aiToUse.getBestMove(session.game, session.game.turn, true);
-
-                if (m) {
-                    session.executeAndRecordMove(m.from, m.to);
-                    if (moves % 5 === 0) boardView.render();
-                    const st = session.game.checkStatus();
-                    if (st.over) {
-                        session.finalizeTrainingGame(st);
-                    }
-                } else {
-                    break;
-                }
-
-                moves++;
-                if (moves % 20 === 0) await new Promise((r) => setTimeout(r, 0));
-            }
-        }
-    } catch (err) {
-        console.error('Hyper-train failed:', err);
-        if (status) status.innerText = `Training stopped: ${err.message}`;
-    } finally {
-        // #region agent log
-        fetch('http://127.0.0.1:7740/ingest/f890c3d0-303f-46d6-beb2-79c6d41b60da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'07a98d'},body:JSON.stringify({sessionId:'07a98d',location:'ui.js:hyperTrain:finally',message:'hypertrain end',data:{isTraining},timestamp:Date.now(),hypothesisId:'H2'})}).catch(()=>{});
-        // #endregion
-        endHyperTrainSession({ overlay, oldLevel });
-        updateGameHistory();
-        resetGame();
     }
 }
 

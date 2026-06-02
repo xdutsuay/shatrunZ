@@ -20,6 +20,7 @@ export class PGNManager {
             variant: "9x9 ShatrunZ",
             fen: "rnbqkbznr/ppppppppp/9/9/9/9/9/PPPPPPPPP/RNBQKBZNR w - - 0 1",
             moves: [],
+            move_sides: [],
             uci_moves: [],
             help_plies: [],
             mode: mode
@@ -60,11 +61,13 @@ export class PGNManager {
         this.currentGame.uci_moves.push(uci);
     }
 
-    recordMove(from, to, piece, captured, isCheck, isCheckmate) {
+    recordMove(from, to, piece, captured, isCheck, isCheckmate, side = null) {
         if (!this.currentGame) return;
 
         const notation = this.toAlgebraic(from, to, piece, captured, isCheck, isCheckmate);
         this.currentGame.moves.push(notation);
+        if (!this.currentGame.move_sides) this.currentGame.move_sides = [];
+        this.currentGame.move_sides.push(side || piece?.color || COLORS.WHITE);
     }
 
     toAlgebraic(from, to, piece, captured, isCheck, isCheckmate) {
@@ -98,7 +101,7 @@ export class PGNManager {
         }
 
         this.saveGames();
-        this.currentGame = null;
+        // Keep currentGame for the move list until the next startNewGame().
     }
 
     getCurrentMoves() {
@@ -112,6 +115,10 @@ export class PGNManager {
         let changed = false;
         if (this.currentGame.moves.length > 0) {
             this.currentGame.moves.pop();
+            changed = true;
+        }
+        if (this.currentGame.move_sides?.length > 0) {
+            this.currentGame.move_sides.pop();
             changed = true;
         }
         if (this.currentGame.uci_moves.length > 0) {

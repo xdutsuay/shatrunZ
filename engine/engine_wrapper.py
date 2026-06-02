@@ -113,23 +113,7 @@ class ShatrunZEngine:
                 parts = line.split()
                 return sorted(parts[1:]) if len(parts) > 1 else []
 
-    def get_best_move(self, fen=None, moves=None, depth=5, randomness=0):
-        """
-        Get best move from current position
-        
-        Args:
-            fen: FEN string (optional, uses startpos if None)
-            moves: list of UCI moves from startpos (preferred over FEN)
-            depth: Search depth
-            randomness: Level of randomness to introduce (0-100)
-        
-        Returns:
-            UCI move string (e.g., "e2e4")
-        """
-        if not self.ready:
-            return None
-        
-        # Set position
+    def _set_position(self, fen=None, moves=None):
         if moves:
             if isinstance(moves, str):
                 moves = [m for m in moves.split() if m]
@@ -138,14 +122,54 @@ class ShatrunZEngine:
             self.send(f'position fen {fen}')
         else:
             self.send('position startpos')
-        
-        # Search
-        self.send(f'go depth {depth} randomness {randomness}')
-        
-        # Wait for bestmove
+
+    def get_best_move(
+        self,
+        fen=None,
+        moves=None,
+        depth=5,
+        randomness=0,
+        movetime_ms=None,
+        wtime=None,
+        btime=None,
+        winc=0,
+        binc=0,
+    ):
+        """Get best move; movetime or clock fields override depth-only search."""
+        if not self.ready:
+            return None
+
+        self._set_position(fen=fen, moves=moves)
+
+        go_parts = ['go']
+        if movetime_ms and int(movetime_ms) > 0:
+            go_parts.append(f'movetime {int(movetime_ms)}')
+        elif wtime is not None or btime is not None:
+            if wtime is not None:
+                go_parts.append(f'wtime {int(wtime)}')
+            if btime is not None:
+                go_parts.append(f'btime {int(btime)}')
+            if winc:
+                go_parts.append(f'winc {int(winc)}')
+            if binc:
+                go_parts.append(f'binc {int(binc)}')
+            if depth:
+                go_parts.append(f'depth {int(depth)}')
+        else:
+            go_parts.append(f'depth {int(depth)}')
+
+        if randomness:
+            go_parts.append(f'randomness {int(randomness)}')
+
+        self.send(' '.join(go_parts))
+
         while True:
-            line = self.get_response()
-            if line and line.startswith('bestmove'):
+            line = self.get_response(timeout=120)
+            if not line:
+                break
+            if line.startswith('info '):
+                continue
+            if line.startswith('bestmove'):
                 parts = line.split()
                 if len(parts) >= 2:
                     mv = parts[1]
@@ -153,7 +177,95 @@ class ShatrunZEngine:
                         return None
                     return mv
                 return None
-    
+
+    def _parse_info_line(self, line):
+        parts = line.split()
+        if 'depth' not in parts or 'score' not in parts:
+            return None
+        out = {'type': 'info'}
+        try:
+            out['depth'] = int(parts[parts.index('depth') + 1])
+        except (ValueError, IndexError):
+            pass
+        try:
+            if 'cp' in parts:
+                out['cp'] = int(parts[parts.index('cp') + 1])
+        except (ValueError, IndexError):
+            pass
+        if 'pv' in parts:
+            idx = parts.index('pv')
+            out['pv'] = parts[idx + 1:]
+        return out
+
+    def iter_search(
+        self,
+        fen=None,
+        moves=None,
+        depth=5,
+        randomness=0,
+        movetime_ms=None,
+        wtime=None,
+        btime=None,
+        winc=0,
+        binc=0,
+    ):
+        """Yield info/bestmove events while searching."""
+        if not self.ready:
+            return
+        self._set_position(fen=fen, moves=moves)
+        go_parts = ['go']
+        if movetime_ms and int(movetime_ms) > 0:
+            go_parts.append(f'movetime {int(movetime_ms)}')
+        elif wtime is not None or btime is not None:
+            if wtime is not None:
+                go_parts.append(f'wtime {int(wtime)}')
+            if btime is not None:
+                go_parts.append(f'btime {int(btime)}')
+            if winc:
+                go_parts.append(f'winc {int(winc)}')
+            if binc:
+                go_parts.append(f'binc {int(binc)}')
+            if depth:
+                go_parts.append(f'depth {int(depth)}')
+        else:
+            go_parts.append(f'depth {int(depth)}')
+        if randomness:
+            go_parts.append(f'randomness {int(randomness)}')
+        self.send(' '.join(go_parts))
+        while True:
+            line = self.get_response(timeout=120)
+            if not line:
+                break
+            if line.startswith('info '):
+                parsed = self._parse_info_line(line)
+                if parsed:
+                    yield parsed
+                continue
+            if line.startswith('bestmove'):
+                parts = line.split()
+                mv = parts[1] if len(parts) >= 2 else None
+                yield {'type': 'bestmove', 'move': mv}
+                return
+
+    def get_eval_cp(self, moves=None, fen=None):
+        """Static eval (cp) from side to move; requires C engine `eval` command."""
+        if not self.ready:
+            return None
+
+        self._set_position(fen=fen, moves=moves)
+        self.send('eval')
+        while True:
+            line = self.get_response(timeout=10)
+            if not line:
+                return None
+            if line.startswith('info score cp'):
+                parts = line.split()
+                try:
+                    idx = parts.index('cp')
+                    return int(parts[idx + 1])
+                except (ValueError, IndexError):
+                    return None
+
     def quit(self):
         """Shutdown engine"""
         if not self.process:

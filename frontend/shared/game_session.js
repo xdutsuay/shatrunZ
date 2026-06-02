@@ -47,7 +47,10 @@ export class GameSession {
         const sideMoved = piece?.color || this.game.turn;
         const plyNum = this.uciMoveHistory.length + 1;
 
-        this.game.executeMove(from, to);
+        if (!this.game.executeMove(from, to)) {
+            return null;
+        }
+
         if (uci) {
             this.uciMoveHistory.push(uci);
             this.pgnManager.recordUciMove?.(uci);
@@ -66,7 +69,7 @@ export class GameSession {
         const status = this.game.checkStatus();
         const isCheckmate = status.over && isCheck;
 
-        this.pgnManager.recordMove(from, to, piece, captured, isCheck, isCheckmate);
+        this.pgnManager.recordMove(from, to, piece, captured, isCheck, isCheckmate, sideMoved);
         const record = { piece, captured, isCheck, isCheckmate, status, uci, sideMoved, nextTurn: this.game.turn };
         this.onAfterMove?.(record);
         return record;

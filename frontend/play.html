@@ -9,21 +9,21 @@
 </head>
 
 <body class="play-page">
-    <div class="main-layout">
-        <div class="left-panel">
-            <div class="panel-section">
+    <div class="main-layout play-minimal">
+        <div class="left-panel lichess-moves-panel">
+            <div class="panel-section moves-panel">
                 <div class="section-header">
                     <h3>Moves</h3>
                     <button id="export-pgn" class="btn-icon" title="Export PGN">📥</button>
                 </div>
-                <div id="move-list" class="move-list">No moves yet</div>
-            </div>
-
-            <div class="panel-section">
-                <div class="section-header">
-                    <h3>Brain Stats</h3>
+                <div id="live-nav-controls" class="move-nav-bar" aria-label="Move navigation">
+                    <button id="nav-start" class="btn icon-btn" title="Start">⏮</button>
+                    <button id="nav-back" class="btn icon-btn" title="Step back">◀</button>
+                    <button id="nav-forward" class="btn icon-btn" title="Step forward">▶</button>
+                    <button id="nav-end" class="btn icon-btn" title="End">⏭</button>
+                    <button type="button" class="btn icon-btn move-menu-btn" title="Menu" disabled>☰</button>
                 </div>
-                <div id="brain-stats" class="brain-stats-detail"></div>
+                <div id="move-list" class="move-list lichess-move-list">No moves yet</div>
             </div>
         </div>
 
@@ -34,6 +34,7 @@
                     <span id="opponent-name">Opponent</span>
                     <span id="opponent-time" class="move-time">--</span>
                 </div>
+                <div id="engine-pv-top" class="engine-pv-panel" aria-live="polite"></div>
             </div>
 
             <div id="board"></div>
@@ -44,6 +45,7 @@
                     <span id="player-name">You</span>
                     <span id="player-time" class="move-time">--</span>
                 </div>
+                <div id="engine-pv-bottom" class="engine-pv-panel" aria-live="polite"></div>
                 <div id="thinking-indicator"></div>
             </div>
         </div>
@@ -58,11 +60,14 @@
                 <a href="/pvp" class="mode-nav-link" data-mode="hvh">PvP</a>
                 <a href="/pvai" class="mode-nav-link" data-mode="hvc">PvAI</a>
                 <a href="/aivai" class="mode-nav-link" data-mode="cvc">AIvAI</a>
+                <a href="/admin" class="mode-nav-link mode-nav-admin">Admin</a>
             </nav>
 
             <div class="game-status">
                 <div id="status">White's Turn</div>
-                <div id="scoreboard">Material: Equal</div>
+                <div id="eval-display" class="eval-display">+0.0</div>
+                <div id="engine-status" class="engine-status">Engine: —</div>
+                <div id="scoreboard" class="scoreboard-secondary">Material: Equal</div>
             </div>
 
             <div id="move-explanation" class="move-explanation" aria-live="polite"></div>
@@ -76,29 +81,21 @@
                     </select>
                 </div>
 
-                <div id="pvai-only-controls" class="control-group" style="display:none">
-                    <label>AI Strategy</label>
-                    <select id="ai-strategy">
-                        <option value="material" selected>Material</option>
-                        <option value="positional">Positional</option>
-                        <option value="aggressive">Aggressive</option>
-                    </select>
-                </div>
-
                 <div id="aivai-only-controls" class="control-group" style="display:none">
                     <label>White AI</label>
                     <select id="white-ai-strategy">
                         <option value="material" selected>Material</option>
                         <option value="positional">Positional</option>
                         <option value="aggressive">Aggressive</option>
+                        <option value="c_native">C Engine</option>
                     </select>
                     <label>Black AI</label>
                     <select id="black-ai-strategy">
                         <option value="material">Material</option>
                         <option value="positional" selected>Positional</option>
                         <option value="aggressive">Aggressive</option>
+                        <option value="c_native">C Engine</option>
                     </select>
-                    <small class="hint">AIvAI uses JS personas only (C engine applies to PvAI).</small>
                 </div>
 
                 <div class="action-buttons">
@@ -106,122 +103,12 @@
                     <button id="reset-game" class="btn secondary">New Game</button>
                 </div>
 
-                <div id="live-nav-controls" class="replay-controls" aria-label="Move navigation">
-                    <button id="nav-start" class="btn secondary small" title="Start">⏮</button>
-                    <button id="nav-back" class="btn secondary small" title="Step back">◀</button>
-                    <button id="nav-forward" class="btn secondary small" title="Step forward">▶</button>
-                    <button id="nav-end" class="btn secondary small" title="End">⏭</button>
-                    <span id="nav-ply-label" class="replay-ply-label">0 / 0</span>
-                </div>
-
                 <div class="ai-controls">
                     <button id="start-auto" class="btn primary">Start AI</button>
                     <button id="stop-auto" class="btn danger" disabled>Stop</button>
                     <button id="btn-help-ai" class="btn secondary" style="display:none">Help AI</button>
                 </div>
-
-                <details class="settings">
-                    <summary class="settings-summary">Settings</summary>
-
-                    <div class="control-group">
-                        <label>AI Level <span id="ai-level-label" class="badge">3</span></label>
-                        <input id="ai-level" type="range" min="1" max="5" value="3">
-                    </div>
-
-                    <div class="control-group">
-                        <label>
-                            <input type="checkbox" id="use-c-engine" checked>
-                            Use Engine (backend UCI)
-                        </label>
-                        <small class="hint">PvAI only — uses backend UCI when available</small>
-                    </div>
-
-                    <div class="control-group">
-                        <label>
-                            <input type="checkbox" id="add-randomness">
-                            Add Randomness
-                        </label>
-                        <small class="hint">Prevents repetitive games (adds ±50 to eval)</small>
-                    </div>
-
-                    <div class="control-group">
-                        <label>
-                            <input type="checkbox" id="enable-ai-help">
-                            Enable AI help (human suggestions)
-                        </label>
-                        <label class="help-sub">
-                            <input type="checkbox" id="enable-ai-auto-help">
-                            AI may ask for help (auto-pause)
-                        </label>
-                        <div class="help-signal-toggles">
-                            <label><input type="checkbox" id="help-signal-eval" checked> Eval swing</label>
-                            <label><input type="checkbox" id="help-signal-margin" checked> Low margin</label>
-                            <label><input type="checkbox" id="help-signal-unknown" checked> Unknown position</label>
-                            <label><input type="checkbox" id="help-signal-repeat" checked> Repetition risk</label>
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <label>
-                            <input type="checkbox" id="enable-move-explain">
-                            Experimental: explain AI moves
-                        </label>
-                    </div>
-
-                    <div class="control-group">
-                        <label>
-                            <input type="checkbox" id="use-policy-net">
-                            Use policy net (JS AI, experimental)
-                        </label>
-                        <small class="hint">Trained on C self-play; bonus in JS search only.</small>
-                    </div>
-
-                    <div class="panel-section">
-                        <h3>ML policy metrics</h3>
-                        <pre id="ml-metrics-panel" class="ml-metrics-panel">Loading…</pre>
-                    </div>
-
-                    <div class="panel-section settings-history">
-                        <div class="section-header">
-                            <h3>Game History</h3>
-                            <button id="clear-history" class="btn-icon" title="Clear History">🗑️</button>
-                        </div>
-                        <select id="game-history" size="6" class="history-select"></select>
-                        <button id="load-game" class="btn secondary small full-width">Load / Replay</button>
-                        <div id="replay-controls" class="replay-controls" style="display:none">
-                            <button id="replay-start" class="btn secondary small" title="Start">⏮</button>
-                            <button id="replay-back" class="btn secondary small" title="Step back">◀</button>
-                            <button id="replay-forward" class="btn secondary small" title="Step forward">▶</button>
-                            <button id="replay-end" class="btn secondary small" title="End">⏭</button>
-                            <span id="replay-ply-label" class="replay-ply-label">0 / 0</span>
-                        </div>
-                        <button id="import-pgn" class="btn secondary small full-width">Import PGN file</button>
-                        <input type="file" id="pgn-file" accept=".pgn,.txt" style="display:none">
-                    </div>
-
-                    <button id="btn-hyper-train" class="btn warning full-width">
-                        ⚡ Hyper-Train (50 Games)
-                    </button>
-
-                    <div class="brain-controls">
-                        <button id="export-brain" class="btn text-only">Export Brain</button>
-                        <button id="import-brain" class="btn text-only">Import Brain</button>
-                        <button id="reset-brain" class="btn text-only">Reset Brain</button>
-                        <input type="file" id="brain-file" accept=".json" style="display:none">
-                    </div>
-                </details>
             </div>
-        </div>
-    </div>
-
-    <div id="training-overlay">
-        <div class="overlay-content">
-            <h2>🧠 Hyper-Training...</h2>
-            <div id="train-status">Simulating Game 1/50</div>
-            <div class="progress-container">
-                <div id="train-progress" class="progress-bar"></div>
-            </div>
-            <button id="cancel-train" class="btn danger">Cancel</button>
         </div>
     </div>
 

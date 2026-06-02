@@ -347,6 +347,44 @@ body {
     min-height: 1em;
 }
 
+.engine-pv-panel {
+    width: 100%;
+    margin-top: 6px;
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.75);
+    max-height: 4.5em;
+    overflow: hidden;
+}
+
+.engine-pv-line {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+}
+
+.engine-pv-score {
+    font-weight: 600;
+    min-width: 2.5em;
+    color: #a8c686;
+}
+
+.engine-pv-depth {
+    opacity: 0.65;
+}
+
+.engine-pv-moves {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-tag.top,
+.user-tag.bottom {
+    flex-wrap: wrap;
+}
+
 #board {
     width: var(--board-size);
     height: var(--board-size);
@@ -895,4 +933,188 @@ button:focus-visible {
         transition: none !important;
         scroll-behavior: auto !important;
     }
+}
+
+/* Minimal play + eval strip */
+.play-minimal .left-panel {
+    max-width: 220px;
+}
+
+.eval-display {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--good);
+    letter-spacing: 0.02em;
+    margin: 4px 0;
+}
+
+.eval-display.eval-negative {
+    color: var(--bad);
+}
+
+.engine-status,
+.scoreboard-secondary {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.eval-bar-wrap {
+    position: absolute;
+    left: -12px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    background: var(--panel-2);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.eval-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(to top, #eee 50%, #333 50%);
+    transition: height 0.2s ease;
+}
+
+.board-area {
+    position: relative;
+}
+
+/* Admin hub tabs */
+.admin-shell {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.admin-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.admin-tab {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.admin-tab.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.admin-panel {
+    display: none;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+}
+
+.admin-panel.active {
+    display: block !important;
+}
+
+.admin-panel[hidden] {
+    display: none !important;
+}
+
+.admin-status {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+}
+
+.stats-chart {
+    width: 100%;
+    max-width: 480px;
+    height: auto;
+    background: var(--panel-2);
+    border-radius: var(--radius-sm);
+    display: block;
+}
+
+.lichess-moves-panel {
+    min-width: 200px;
+    max-width: 240px;
+}
+
+.move-nav-bar {
+    display: flex;
+    gap: 4px;
+    padding: 6px 4px;
+    background: var(--panel-2);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+}
+
+.move-nav-bar .icon-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 4px;
+    font-size: 14px;
+}
+
+.lichess-move-list {
+    background: var(--panel-2);
+    border-radius: var(--radius-sm);
+    padding: 8px 6px;
+    max-height: min(52vh, 420px);
+    overflow-y: auto;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.move-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.move-table .move-num {
+    color: var(--text-dim);
+    width: 2.2em;
+    padding-right: 6px;
+    text-align: right;
+    user-select: none;
+}
+
+.move-table .move-cell {
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--text);
+}
+
+.move-table .move-cell.active {
+    background: var(--accent);
+    color: #fff;
+}
+
+.move-table .move-cell-empty {
+    min-width: 2em;
+}
+
+.move-empty,
+.move-help-note {
+    color: var(--text-dim);
+    font-size: 12px;
+    padding: 8px;
 }

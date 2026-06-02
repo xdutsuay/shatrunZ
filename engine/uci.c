@@ -11,8 +11,52 @@
 // Forward declarations
 void init_position(Position *pos);
 Move search(Position *pos, int depth, int randomness);
+Move search_timed(Position *pos, int max_depth, int randomness, int time_ms);
+int evaluate(const Position *pos);
 int generate_legal_moves(Position *pos, Move *moves);
 void make_move(Position *pos, const Move *move);
+
+static int parse_go_int(const char *line, const char *token, int default_value) {
+  char *found = strstr(line, token);
+  if (!found) {
+    return default_value;
+  }
+  int value = default_value;
+  sscanf(found, "%*s %d", &value);
+  return value;
+}
+
+static int compute_go_time_ms(const char *line, Color side) {
+  int movetime = parse_go_int(line, "movetime", 0);
+  if (movetime > 0) {
+    return movetime;
+  }
+
+  int wtime = parse_go_int(line, "wtime", 0);
+  int btime = parse_go_int(line, "btime", 0);
+  int winc = parse_go_int(line, "winc", 0);
+  int binc = parse_go_int(line, "binc", 0);
+
+  if (wtime <= 0 && btime <= 0) {
+    return 0;
+  }
+
+  int remaining = (side == WHITE) ? wtime : btime;
+  int inc = (side == WHITE) ? winc : binc;
+  if (remaining <= 0) {
+    remaining = (side == WHITE) ? btime : wtime;
+    inc = (side == WHITE) ? binc : winc;
+  }
+
+  int budget = remaining / 20 + inc;
+  if (budget < 50) {
+    budget = 50;
+  }
+  if (budget > remaining && remaining > 0) {
+    budget = remaining;
+  }
+  return budget;
+}
 
 // Convert square to algebraic notation (e.g., e2)
 void square_to_str(Square sq, char *str) {
@@ -139,23 +183,21 @@ void uci_loop() {
       }
       printf("\n");
       fflush(stdout);
+    } else if (strcmp(line, "eval") == 0) {
+      int score = evaluate(&pos);
+      printf("info score cp %d\n", score);
+      fflush(stdout);
     } else if (strncmp(line, "go", 2) == 0) {
-      // Parse depth
-      int depth = 5; // Default depth
-      char *depth_str = strstr(line, "depth");
-      if (depth_str) {
-        sscanf(depth_str, "depth %d", &depth);
-      }
+      int depth = parse_go_int(line, "depth", 5);
+      int randomness = parse_go_int(line, "randomness", 0);
+      int time_ms = compute_go_time_ms(line, pos.side_to_move);
 
-      // Parse randomness
-      int randomness = 0;
-      char *rand_str = strstr(line, "randomness");
-      if (rand_str) {
-        sscanf(rand_str, "randomness %d", &randomness);
+      Move best;
+      if (time_ms > 0) {
+        best = search_timed(&pos, depth > 0 ? depth : 64, randomness, time_ms);
+      } else {
+        best = search(&pos, depth, randomness);
       }
-
-      // Search for best move
-      Move best = search(&pos, depth, randomness);
 
       if (best.from >= 0) {
         char from_str[4], to_str[4];

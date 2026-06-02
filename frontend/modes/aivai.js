@@ -1,15 +1,19 @@
 import { COLORS } from '../constants.js';
 import { MODES, shouldTriggerAiMove } from '../mode_logic.js';
 import { ModeController } from './mode_controller.js';
-import { getJsMoveForTurn } from '../shared/engine_move.js';
+import { getMoveForTurn, getEnginePersonaForSide, isPersonaCNative } from '../shared/engine_move.js';
+import { minPlyDelayMs } from '../shared/persona.js';
+import { clearEnginePv, handleSearchUpdate } from '../shared/engine_pv_panel.js';
 import { undoPlies } from '../shared/undo_utils.js';
 import { maybeAutoAskHelp } from '../shared/help_signal.js';
+
 export function pickAiForTurn(turn, ai1, ai2) {
     return turn === COLORS.WHITE ? ai1 : ai2;
 }
 
-export function shouldUseJsEngine() {
-    return true;
+export function shouldUseJsEngine(turn) {
+    const side = turn === COLORS.WHITE ? 'white' : 'black';
+    return !isPersonaCNative(strategyFromSelect(side));
 }
 
 export function strategyFromSelect(side) {
@@ -91,6 +95,8 @@ export class AivaiModeController extends ModeController {
         if (this.aiMoveInFlight) return;
         const { game, session, boardView, thinkEl } = this.ctx;
 
+        if (this.ctx.isReviewing) return;
+
         if (!shouldTriggerAiMove({
             mode: MODES.CVC,
             gameOver: game.gameOver,
@@ -103,25 +109,35 @@ export class AivaiModeController extends ModeController {
 
         this.aiMoveInFlight = true;
         const gen = this.bumpAiGeneration();
+        const thinkingSide = game.turn;
+        clearEnginePv(thinkingSide);
         thinkEl.innerText = 'Thinking...';
-        await new Promise(r => setTimeout(r, 50));
-        if (!this.isAiGenerationCurrent(gen) || !this.aiMoveInFlight) return;
+        const onSearchUpdate = (evt) => handleSearchUpdate(thinkingSide, evt);
+        await new Promise(r => setTimeout(r, 20));
+        if (!this.isAiGenerationCurrent(gen) || !this.aiMoveInFlight) {
+            this.aiMoveInFlight = false;
+            thinkEl.innerText = '';
+            this.ctx.refreshUi?.();
+            return;
+        }
 
         const moveStartTime = performance.now();
         let move = null;
         try {
-            move = await getJsMoveForTurn({
+            move = await getMoveForTurn({
                 game,
                 ai1: this.ctx.ai1,
                 ai2: this.ctx.ai2,
                 turn: game.turn,
                 uciMoveHistory: session.uciMoveHistory,
+                onSearchUpdate,
             });
         } catch (err) {
             console.error('AIvAI move failed:', err);
         }
 
         thinkEl.innerText = '';
+        clearEnginePv(thinkingSide);
         this.aiMoveInFlight = false;
 
         if (!move) {
@@ -145,6 +161,11 @@ export class AivaiModeController extends ModeController {
         this.ctx.updateMoveTime(game.turn, moveTimeSeconds);
 
         const record = session.executeAndRecordMove(move.from, move.to);
+        if (!record) {
+            this.stopAuto();
+            this.ctx.statusEl.innerText = 'Illegal move rejected — auto-play stopped.';
+            return;
+        }
         boardView.render();
         this.ctx.refreshUi();
         this.ctx.maybeExplainMove(move, record, ai);
@@ -154,7 +175,7 @@ export class AivaiModeController extends ModeController {
         if (status.over) {
             this.ctx.onGameEnd(status);
         } else if (this.autoRunning) {
-            this.scheduleAiChain(500, () => this.triggerAiMove());
+            this.scheduleAiChain(minPlyDelayMs(), () => this.triggerAiMove());
         }
     }
 }

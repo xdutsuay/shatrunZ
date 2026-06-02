@@ -71,8 +71,12 @@ Results land in `data/training_runs/` and appear on the admin page via `GET /api
 - [docs/START_HERE.md](docs/START_HERE.md) — minimal run guide  
 - [docs/FEATURES.md](docs/FEATURES.md) — feature inventory  
 - [docs/engine_roles.md](docs/engine_roles.md) — C engine vs JS vs external UCI  
+- [docs/variant_engine_guide.md](docs/variant_engine_guide.md) — 9×9 variant, Krishna, engine roadmap  
+- [docs/COORDINATION.md](docs/COORDINATION.md) — multi-IDE handoff and work log  
+- [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) — phased implementation checklist  
 - [docs/plans/](docs/plans/) — active implementation plans  
 - [docs/ROADMAP_CHECKLIST.md](docs/ROADMAP_CHECKLIST.md) — shipped vs pending checklist  
+- [docs/variant_engine_guide.md](docs/variant_engine_guide.md) — variant search, eval, tablebase plan  
 
 ## Upcoming
 

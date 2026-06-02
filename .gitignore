@@ -26,6 +26,9 @@ graphify-out/
 # Local NVIDIA API worker (API key via Cursor Settings; not part of repo)
 nvidia_worker/
 
+# Local agent logs
+hermes-logs/
+
 # Local / IDE
 .cursor/
 .venv-regression/

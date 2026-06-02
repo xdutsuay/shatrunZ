@@ -62,6 +62,30 @@ def test_engine_move_respects_midgame_move_list():
     assert resp_start.get_json()["success"] is True
 
 
+def test_engine_move_accepts_wtime_btime():
+    from backend.server import app  # noqa: WPS433
+
+    client = app.test_client()
+    resp = client.post(
+        "/api/engine-move",
+        json={
+            "moves": [],
+            "depth": 4,
+            "randomness": 0,
+            "wtime": 60000,
+            "btime": 60000,
+            "winc": 1000,
+            "binc": 1000,
+        },
+    )
+    if resp.status_code == 503:
+        return
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["success"] is True
+    assert isinstance(data["move"], str)
+
+
 def test_save_game_persists_uci_moves_in_metadata(tmp_path):
     # We don't want to touch real repo data dir. Patch backend.server globals to use tmp dirs.
     import backend.server as server  # noqa: WPS433
@@ -96,4 +120,38 @@ def test_save_game_persists_uci_moves_in_metadata(tmp_path):
     assert meta_files, "Expected backend to write game_*.json metadata"
     meta = json.loads(meta_files[0].read_text(encoding="utf-8"))
     assert meta["uci_moves"] == uci_moves
+
+
+def test_stats_summary_endpoint_shape(tmp_path):
+    import backend.server as server
+
+    server.DATA_DIR = tmp_path
+    server.GAMES_DIR = tmp_path / "games"
+    server.GAMES_DIR.mkdir(parents=True)
+
+    client = server.app.test_client()
+    resp = client.get("/api/stats/summary")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["success"] is True
+    assert "total_games" in data
+    assert "wins_by_color" in data
+    assert "by_mode" in data
+    assert "by_persona" in data
+
+
+def test_engine_move_accepts_movetime(tmp_path):
+    from backend.server import app
+
+    client = app.test_client()
+    resp = client.post(
+        "/api/engine-move",
+        json={"depth": 3, "movetime": 80, "randomness": 0},
+    )
+    assert resp.status_code in (200, 503)
+    if resp.status_code == 503:
+        return
+    data = resp.get_json()
+    assert data["success"] is True
+    assert isinstance(data["move"], str)
 

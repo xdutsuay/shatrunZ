@@ -35,6 +35,11 @@ export class Game {
 
     executeMove(from, to) {
         const p = this.board[from.r][from.c];
+        if (!p) return false;
+        if (p.color !== this.turn) {
+            console.warn('executeMove rejected: piece color', p.color, '!= turn', this.turn);
+            return false;
+        }
         const captured = this.board[to.r][to.c];
 
         // 1. Record History for Undo
@@ -86,6 +91,7 @@ export class Game {
         // Update Repetition
         const newHash = this.getHash();
         this.positionHistory[newHash] = (this.positionHistory[newHash] || 0) + 1;
+        return true;
     }
 
     /**

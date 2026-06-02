@@ -1,4 +1,21 @@
-import { SettingsKeys, getSettings, setBool, setNum } from './shared/settings_store.js';
+import {
+    SettingsKeys,
+    getSettings,
+    setBool,
+    setNum,
+    setStr,
+} from './shared/settings_store.js';
+import {
+    readPersonaStatsFromStorage,
+    personaLabel,
+    ENGINE_PERSONAS,
+} from './shared/persona.js';
+import { GameBrain } from './brain.js';
+import { PGNManager } from './pgn.js';
+import { loadPolicyMetrics, formatMetricsPanel } from './shared/policy_net.js';
+import { runHyperTrain, cancelHyperTrain } from './shared/hyper_train.js';
+import { renderPersonaChart } from './shared/persona_chart.js';
+import { BackendAPI } from './api.js';
 
 function fmtStats(stats) {
     const w = stats?.wins ?? 0;
@@ -8,72 +25,161 @@ function fmtStats(stats) {
     return `${w}W-${l}L-${d}D (games: ${g})`;
 }
 
-function readPersonaStatsFromLocalStorage() {
-    const items = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (!k) continue;
-        if (!k.startsWith('shatrunz_brain_')) continue;
-        if (!k.endsWith('_v3_stats')) continue;
-        try {
-            const stats = JSON.parse(localStorage.getItem(k));
-            const name = k.replace(/^shatrunz_brain_/, '').replace(/_v3_stats$/, '');
-            items.push({ name, stats });
-        } catch {
-            // ignore
-        }
-    }
-    items.sort((a, b) => a.name.localeCompare(b.name));
-    return items;
-}
-
 function renderPersonaStats(el) {
-    const items = readPersonaStatsFromLocalStorage();
-    if (items.length === 0) {
-        el.textContent = 'No persona stats found yet. Play some games first.';
+    const items = readPersonaStatsFromStorage();
+    if (items.every((x) => (x.stats?.games ?? 0) === 0)) {
+        el.textContent = 'No persona stats yet. Play or hyper-train to populate.';
         return;
     }
-    el.innerHTML = items.map(({ name, stats }) => {
-        return `<div class="brain-row"><strong>${name}</strong><br>${fmtStats(stats)}</div>`;
+    el.innerHTML = items.map(({ name, stats, label }) => {
+        const title = label || personaLabel(name);
+        return `<div class="brain-row"><strong>${title}</strong><br>${fmtStats(stats)}</div>`;
     }).join('<hr class="sep">');
 }
+
+function switchTab(tabId) {
+    document.querySelectorAll('.admin-tab').forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.tab === tabId);
+    });
+    document.querySelectorAll('.admin-panel').forEach((panel) => {
+        const show = panel.id === `tab-${tabId}`;
+        panel.classList.toggle('active', show);
+        panel.hidden = !show;
+    });
+}
+
+const pgnManager = new PGNManager();
 
 export function initAdmin() {
     const statusEl = document.getElementById('admin-status');
     const statsEl = document.getElementById('admin-persona-stats');
-    if (statsEl) renderPersonaStats(statsEl);
+    const apiStatsEl = document.getElementById('admin-api-stats');
     const runsEl = document.getElementById('admin-training-runs');
-    if (runsEl) runsEl.textContent = 'Loading…';
+
+    document.querySelectorAll('.admin-tab').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            switchTab(btn.dataset.tab);
+            if (btn.dataset.tab === 'stats') {
+                if (statsEl) renderPersonaStats(statsEl);
+                renderPersonaChart(document.getElementById('admin-persona-chart'));
+            }
+        });
+    });
 
     const s = getSettings();
     const allowEl = document.getElementById('admin-allow-midgame-persona');
     const clocksEl = document.getElementById('admin-enable-clocks');
     const totalEl = document.getElementById('admin-clock-total-min');
     const incEl = document.getElementById('admin-clock-increment-sec');
+    const thinkEl = document.getElementById('admin-think-time-ms');
+    const levelEl = document.getElementById('ai-level');
+    const levelLabel = document.getElementById('ai-level-label');
+    const engineEl = document.getElementById('engine-persona');
+    const randomEl = document.getElementById('add-randomness');
+    const helpEl = document.getElementById('enable-ai-help');
+    const autoHelpEl = document.getElementById('enable-ai-auto-help');
+    const explainEl = document.getElementById('enable-move-explain');
+    const policyEl = document.getElementById('use-policy-net');
 
     if (allowEl) allowEl.checked = s.allowMidgamePersonaChange;
     if (clocksEl) clocksEl.checked = s.enableClocks;
     if (totalEl) totalEl.value = String(Math.floor(s.clockTotalMs / 60000));
     if (incEl) incEl.value = String(Math.floor(s.clockIncrementMs / 1000));
+    if (thinkEl) thinkEl.value = String(s.thinkTimeMs || 0);
+    if (levelEl) levelEl.value = String(s.aiLevel);
+    if (levelLabel) levelLabel.textContent = String(s.aiLevel);
+    if (engineEl) engineEl.value = s.enginePersona || 'material';
+    if (randomEl) randomEl.checked = s.randomness;
+    if (helpEl) helpEl.checked = s.enableHelp;
+    if (autoHelpEl) autoHelpEl.checked = s.autoHelp;
+    if (explainEl) explainEl.checked = s.enableMoveExplain;
+    if (policyEl) policyEl.checked = s.usePolicyNet;
+
+    levelEl?.addEventListener('input', () => {
+        if (levelLabel) levelLabel.textContent = levelEl.value;
+    });
+
+    const sig = (id, key, def = true) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const v = localStorage.getItem(key);
+        el.checked = v === null ? def : v === '1';
+    };
+    sig('help-signal-eval', 'shatrunz_help_eval_swing');
+    sig('help-signal-margin', 'shatrunz_help_low_margin');
+    sig('help-signal-unknown', 'shatrunz_help_unknown');
+    sig('help-signal-repeat', 'shatrunz_help_repeat');
 
     document.getElementById('admin-save')?.addEventListener('click', () => {
         setBool(SettingsKeys.allowMidgamePersonaChange, !!allowEl?.checked);
         setBool(SettingsKeys.enableClocks, !!clocksEl?.checked);
-        const totalMs = Number(totalEl?.value || 0) * 60_000;
-        const incMs = Number(incEl?.value || 0) * 1_000;
-        setNum(SettingsKeys.clockTotalMs, totalMs);
-        setNum(SettingsKeys.clockIncrementMs, incMs);
+        setNum(SettingsKeys.clockTotalMs, Number(totalEl?.value || 0) * 60_000);
+        setNum(SettingsKeys.clockIncrementMs, Number(incEl?.value || 0) * 1_000);
+        setNum(SettingsKeys.thinkTimeMs, Number(thinkEl?.value || 0));
+        setNum(SettingsKeys.aiLevel, Number(levelEl?.value || 3));
+        setStr(SettingsKeys.enginePersona, engineEl?.value || 'material');
+        setBool(SettingsKeys.randomness, !!randomEl?.checked);
+        setBool(SettingsKeys.enableHelp, !!helpEl?.checked);
+        setBool(SettingsKeys.autoHelp, !!autoHelpEl?.checked);
+        setBool(SettingsKeys.enableMoveExplain, !!explainEl?.checked);
+        setBool(SettingsKeys.usePolicyNet, !!policyEl?.checked);
+        localStorage.setItem('shatrunz_enable_move_explain', explainEl?.checked ? '1' : '0');
+        localStorage.setItem('shatrunz_use_policy_net', policyEl?.checked ? '1' : '0');
 
-        if (statusEl) statusEl.textContent = 'Saved. Settings apply to new games.';
+        if (statusEl) statusEl.textContent = 'Saved. Settings apply on play page.';
+    });
+
+    if (statsEl) renderPersonaStats(statsEl);
+    renderPersonaChart(document.getElementById('admin-persona-chart'));
+
+    if (apiStatsEl) {
+        fetch('/api/stats/summary')
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data) => {
+                if (!data) {
+                    apiStatsEl.textContent = 'API stats unavailable (endpoint optional). Use local persona table above.';
+                    return;
+                }
+                apiStatsEl.textContent = JSON.stringify(data, null, 2);
+            })
+            .catch(() => {
+                apiStatsEl.textContent = 'API stats unavailable. Use local persona table above.';
+            });
+    }
+
+    document.getElementById('btn-inspector-last')?.addEventListener('click', async () => {
+        if (statusEl) statusEl.textContent = 'Running inspector…';
+        const games = pgnManager.games;
+        const last = games[0];
+        if (!last) {
+            if (statusEl) statusEl.textContent = 'No saved games in history.';
+            return;
+        }
+        const res = await BackendAPI.inspectorAnalyze({ game: last });
+        if (statusEl) {
+            statusEl.textContent = res.success
+                ? `Inspector done (${res.source}). See terminal / ${res.log_file || 'data/logs'}.`
+                : `Inspector failed: ${res.error || 'unknown'}`;
+        }
+    });
+
+    document.getElementById('btn-inspector-bulk')?.addEventListener('click', async () => {
+        if (statusEl) statusEl.textContent = 'Bulk inspector running…';
+        const res = await BackendAPI.inspectorBulk();
+        if (statusEl) {
+            statusEl.textContent = res.success
+                ? `Bulk report: ${res.log_file || 'data/logs'}. See server terminal.`
+                : `Bulk failed: ${res.error || 'unknown'}`;
+        }
     });
 
     if (runsEl) {
         fetch('/api/training-runs')
-            .then(r => r.json())
+            .then((r) => r.json())
             .then((data) => {
                 const runs = data?.runs || [];
                 if (runs.length === 0) {
-                    runsEl.textContent = 'No runs yet. Use scripts/train_benchmark_30m.py to generate one.';
+                    runsEl.textContent = 'No runs yet.';
                     return;
                 }
                 runsEl.innerHTML = runs.slice(0, 10).map((run) => {
@@ -88,5 +194,122 @@ export function initAdmin() {
                 runsEl.textContent = `Failed to load runs: ${e?.message || e}`;
             });
     }
+
+    refreshMlMetrics();
+    updateGameHistory();
+
+    document.getElementById('btn-hyper-train')?.addEventListener('click', async () => {
+        await runHyperTrain();
+        const statsEl = document.getElementById('admin-persona-stats');
+        if (statsEl) renderPersonaStats(statsEl);
+        if (statusEl) statusEl.textContent = 'Hyper-train finished.';
+    });
+    document.getElementById('cancel-train')?.addEventListener('click', () => {
+        cancelHyperTrain();
+    });
+
+    document.getElementById('reset-brain')?.addEventListener('click', resetAllPersonaBrains);
+    document.getElementById('export-brain')?.addEventListener('click', exportAllBrains);
+    document.getElementById('import-brain')?.addEventListener('click', () => {
+        document.getElementById('brain-file')?.click();
+    });
+    document.getElementById('brain-file')?.addEventListener('change', importBrains);
+
+    document.getElementById('clear-history')?.addEventListener('click', () => {
+        if (confirm('Clear all game history?')) {
+            pgnManager.clearHistory();
+            updateGameHistory();
+        }
+    });
+    document.getElementById('load-game')?.addEventListener('click', () => {
+        const select = document.getElementById('game-history');
+        const gameData = pgnManager.getGame(parseInt(select?.value ?? '', 10));
+        if (gameData?.uci_moves?.length) {
+            alert(`Loaded ${gameData.white} vs ${gameData.black}. Open play page to replay.`);
+        }
+    });
+    document.getElementById('import-pgn')?.addEventListener('click', () => {
+        document.getElementById('pgn-file')?.click();
+    });
+    document.getElementById('pgn-file')?.addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = pgnManager.importPgnFile(reader.result);
+            if (result.ok) {
+                updateGameHistory();
+                if (statusEl) statusEl.textContent = 'PGN imported.';
+            } else {
+                alert('Import failed: ' + (result.error || 'unknown'));
+            }
+        };
+        reader.readAsText(file);
+    });
 }
 
+function updateGameHistory() {
+    const select = document.getElementById('game-history');
+    if (!select) return;
+    select.innerHTML = '';
+    pgnManager.getGameHistory().forEach((g, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `${g.date} - ${g.white} vs ${g.black} (${g.result})`;
+        select.appendChild(option);
+    });
+}
+
+async function refreshMlMetrics() {
+    const el = document.getElementById('ml-metrics-panel');
+    if (!el) return;
+    const metrics = await loadPolicyMetrics();
+    el.textContent = formatMetricsPanel(metrics);
+}
+
+function resetAllPersonaBrains() {
+    if (!confirm('Reset all persona brain memory? This cannot be undone.')) return;
+    for (const p of ENGINE_PERSONAS) {
+        const name = p.kind === 'c' ? 'persona_c_native' : `persona_${p.strategy}`;
+        new GameBrain(name).clear();
+    }
+    const statsEl = document.getElementById('admin-persona-stats');
+    if (statsEl) renderPersonaStats(statsEl);
+}
+
+function exportAllBrains() {
+    const combined = {};
+    for (const p of ENGINE_PERSONAS) {
+        const name = p.kind === 'c' ? 'persona_c_native' : `persona_${p.strategy}`;
+        combined[name] = new GameBrain(name).exportToJSON();
+    }
+    const blob = new Blob([JSON.stringify(combined, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `shatrunz_personas_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importBrains(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const data = JSON.parse(event.target.result);
+            for (const [name, brainData] of Object.entries(data)) {
+                if (brainData?.memory) {
+                    new GameBrain(name).importFromJSON(brainData);
+                }
+            }
+            const statsEl = document.getElementById('admin-persona-stats');
+            if (statsEl) renderPersonaStats(statsEl);
+            alert('Persona brains imported.');
+        } catch (err) {
+            alert('Import failed: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+}

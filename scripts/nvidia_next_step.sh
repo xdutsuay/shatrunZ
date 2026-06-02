@@ -33,13 +33,13 @@ root = Path(__file__).resolve().parent.parent if False else Path(".")  # cwd is 
 root = Path.cwd()
 parts = []
 parts.append("## NEXT_STEPS.md (excerpt)")
-next_steps = root / "NEXT_STEPS.md"
+next_steps = root / "docs" / "NEXT_STEPS.md"
 if next_steps.is_file():
     lines = next_steps.read_text().splitlines()
     parts.extend(lines[156:165])
 parts.append("")
 parts.append("## COORDINATION.md (active focus)")
-coord = root / "COORDINATION.md"
+coord = root / "docs" / "COORDINATION.md"
 if coord.is_file():
     lines = coord.read_text().splitlines()
     parts.extend(lines[38:41])

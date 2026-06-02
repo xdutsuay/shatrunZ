@@ -12,9 +12,6 @@ export class BoardView {
 
     render() {
         const game = this.getGame();
-        // #region agent log
-        fetch('http://127.0.0.1:7740/ingest/f890c3d0-303f-46d6-beb2-79c6d41b60da',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'07a98d'},body:JSON.stringify({sessionId:'07a98d',location:'board_view.js:render',message:'board render',data:{isTraining:!!this.isTraining?.(),moveHistoryLen:game?.moveHistory?.length??-1,ply:game?.moveHistory?.length??0},timestamp:Date.now(),hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
         const { selectedSq, legalMoves } = this.getSelection();
 
         let checkKingPos = null;

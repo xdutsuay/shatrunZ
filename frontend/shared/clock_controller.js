@@ -27,21 +27,30 @@ export class ClockController {
         this.onFlagFall = null;
     }
 
-    reset({ totalMs = this.totalMs, incrementMs = this.incrementMs, turn = COLORS.WHITE } = {}) {
+    reset({ totalMs = this.totalMs, incrementMs = this.incrementMs, turn = COLORS.WHITE, startPaused = false } = {}) {
         this.totalMs = clampMs(totalMs);
         this.incrementMs = clampMs(incrementMs);
         this.whiteMs = this.totalMs;
         this.blackMs = this.totalMs;
         this._turn = turn;
         this._lastTs = null;
-        this._paused = false;
-        this._ensureLoop();
+        this.stop();
+        this._paused = !!startPaused;
         this._emit();
+        if (!startPaused) {
+            this._paused = false;
+            this._ensureLoop();
+        }
     }
 
     setPaused(paused) {
         this._paused = !!paused;
         if (!this._paused) this._ensureLoop();
+        else this.stop();
+    }
+
+    isPaused() {
+        return this._paused;
     }
 
     setTurn(turn) {
@@ -84,8 +93,8 @@ export class ClockController {
         const loop = (ts) => {
             if (!this._running) return;
             if (this._paused) {
-                this._lastTs = ts;
-                this._raf = requestAnimationFrame(loop);
+                this._raf = null;
+                this._running = false;
                 return;
             }
 

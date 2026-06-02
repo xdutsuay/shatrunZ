@@ -36,6 +36,7 @@ export class ModeController {
         this.autoRunning = true;
         this.ctx.syncAutoButtons();
         this.onStartAuto();
+        this.ctx.startClocks?.();
         this.triggerAiMove();
     }
 
@@ -46,6 +47,7 @@ export class ModeController {
         this.cancelPendingAiTimers();
         this.ctx.syncAutoButtons();
         this.onStopAuto();
+        this.ctx.refreshUi?.();
     }
 
     cancelPendingAiTimers() {
@@ -85,6 +87,7 @@ export class ModeController {
         this.helpReason = reason || '';
         this.ctx.syncAutoButtons();
         this.ctx.syncHelpButton();
+        this.ctx.refreshUi?.();
     }
 
     resumeAfterHelp() {

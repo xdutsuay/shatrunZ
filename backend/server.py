@@ -3,7 +3,7 @@ ShatrunZ Backend Server
 Handles file storage, game analysis, and AI training
 """
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 import json
 import os
@@ -15,6 +15,7 @@ import re
 
 # Version helper
 from backend.version import get_repo_version
+from backend.stats import aggregate_games
 
 # Add engine to path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'engine'))
@@ -149,8 +150,14 @@ def save_game():
         'result': data.get('result', '*'),
         'moves': data.get('moves', []),
         'uci_moves': data.get('uci_moves', []),
-        'timestamp': timestamp
+        'timestamp': timestamp,
     }
+    if data.get('mode'):
+        metadata['mode'] = data.get('mode')
+    if data.get('engine_white'):
+        metadata['engine_white'] = data.get('engine_white')
+    if data.get('engine_black'):
+        metadata['engine_black'] = data.get('engine_black')
     
     meta_filepath = GAMES_DIR / f"game_{timestamp}.json"
     with open(meta_filepath, 'w') as f:
@@ -231,14 +238,29 @@ def engine_move():
         moves = data.get('moves')  # Optional UCI move list (preferred)
         depth = data.get('depth', 5)
         randomness = data.get('randomness', 0)
+        movetime_ms = data.get('movetime_ms') or data.get('movetime')
+        wtime = data.get('wtime')
+        btime = data.get('btime')
+        winc = data.get('winc', 0)
+        binc = data.get('binc', 0)
 
         # Accept either list[str] or a single space-delimited string.
         if isinstance(moves, str):
             moves = [m for m in moves.split() if m]
         if moves is not None and not isinstance(moves, list):
             return jsonify({'success': False, 'error': 'moves must be a list of UCI strings or a space-delimited string'}), 400
-        
-        move = engine.get_best_move(fen=fen, moves=moves, depth=depth, randomness=randomness)
+
+        move = engine.get_best_move(
+            fen=fen,
+            moves=moves,
+            depth=depth,
+            randomness=randomness,
+            movetime_ms=movetime_ms,
+            wtime=wtime,
+            btime=btime,
+            winc=winc,
+            binc=binc,
+        )
         
         if move and move not in ("0000", "(none)", "none"):
             return jsonify({'success': True, 'move': move})
@@ -258,6 +280,113 @@ def health():
         'games_count': len(list(GAMES_DIR.glob('game_*.json'))),
         'brains_count': len(list(BRAINS_DIR.glob('brain_*_latest.json')))
     })
+
+
+@app.route('/api/stats/summary', methods=['GET'])
+def stats_summary():
+    """Aggregate saved games for admin Stats tab."""
+    summary = aggregate_games(GAMES_DIR)
+    return jsonify({'success': True, **summary})
+
+
+@app.route('/api/engine-eval', methods=['POST'])
+def engine_eval():
+    if not engine:
+        return jsonify({'success': False, 'error': 'Engine not available'}), 503
+
+    data = request.json or {}
+    moves = data.get('moves')
+    fen = data.get('fen')
+
+    if isinstance(moves, str):
+        moves = [m for m in moves.split() if m]
+    if moves is not None and not isinstance(moves, list):
+        return jsonify({'success': False, 'error': 'moves must be a list of UCI strings or a space-delimited string'}), 400
+
+    get_eval = getattr(engine, 'get_eval_cp', None)
+    if not callable(get_eval):
+        return jsonify({'success': False, 'error': 'Eval not supported by engine'}), 501
+
+    try:
+        cp = get_eval(moves=moves, fen=fen)
+        if cp is None:
+            return jsonify({'success': False, 'error': 'No eval'}), 400
+        return jsonify({
+            'success': True,
+            'eval_cp': cp,
+            'eval_pawns': round(cp / 100.0, 1),
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/engine-search', methods=['POST'])
+def engine_search():
+    """Stream NDJSON search events (info + bestmove) for live PV UI."""
+    if not engine:
+        return jsonify({'success': False, 'error': 'Engine not available'}), 503
+
+    data = request.json or {}
+    moves = data.get('moves')
+    if isinstance(moves, str):
+        moves = [m for m in moves.split() if m]
+    depth = data.get('depth', 5)
+    randomness = data.get('randomness', 0)
+    movetime_ms = data.get('movetime_ms') or data.get('movetime')
+    wtime = data.get('wtime')
+    btime = data.get('btime')
+    winc = data.get('winc', 0)
+    binc = data.get('binc', 0)
+
+    def generate():
+        try:
+            for evt in engine.iter_search(
+                moves=moves,
+                depth=depth,
+                randomness=randomness,
+                movetime_ms=movetime_ms,
+                wtime=wtime,
+                btime=btime,
+                winc=winc,
+                binc=binc,
+            ):
+                yield json.dumps(evt) + '\n'
+        except Exception as exc:
+            yield json.dumps({'type': 'error', 'error': str(exc)}) + '\n'
+
+    return Response(generate(), mimetype='application/x-ndjson')
+
+
+@app.route('/api/inspector/analyze', methods=['POST'])
+def inspector_analyze():
+    """On-demand game analysis (SDK with heuristic fallback)."""
+    from inspector_agent import analyze_with_agent, save_report
+
+    data = request.json or {}
+    game_file = data.get('game_file')
+    if game_file:
+        path = GAMES_DIR / Path(game_file).name
+        if not path.exists():
+            return jsonify({'success': False, 'error': 'Game file not found'}), 404
+        with open(path, 'r', encoding='utf-8') as f:
+            game_data = json.load(f)
+    else:
+        game_data = data.get('game') or data
+
+    report, source = analyze_with_agent(game_data)
+    log_path = save_report(report, prefix='agent_insights')
+    print(f"\n📋 Inspector report ({source}): {log_path}\n{report[:2000]}...\n")
+    return jsonify({'success': True, 'source': source, 'log_file': log_path.name, 'report': report})
+
+
+@app.route('/api/inspector/bulk', methods=['POST'])
+def inspector_bulk():
+    from inspector_agent import bulk_analyze_games
+
+    limit = int((request.json or {}).get('limit', 50))
+    path = bulk_analyze_games(limit=limit)
+    print(f"\n📋 Bulk inspector report: {path}\n")
+    return jsonify({'success': True, 'log_file': path.name})
 
 
 @app.route('/api/training-runs', methods=['GET'])

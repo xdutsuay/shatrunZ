@@ -1,3 +1,5 @@
 flask
 flask-cors
 pytest
+# Optional: pip install cursor-sdk for on-demand AI game analysis
+# cursor-sdk

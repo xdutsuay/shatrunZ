@@ -1,7 +1,7 @@
 # ShatrunZ Handoff Report
 
 ## 1. Current Status & Roadmap Updates
-According to `COORDINATION.md`, the following roadmap items have been implemented:
+According to `docs/COORDINATION.md`, the following roadmap items have been implemented:
 *   **Rules spec + rules alignment**: Added `docs/rules.md`. C Engine updated (Krishna rules aligned, castling validation checks for rook existence).
 *   **Hosted demo readiness**: Frontend API base URL is now relative. Docker artifacts (`Dockerfile`, `docker-compose.yml`) have been added.
 *   **Versioning + packaging**: Added `VERSION` (`0.1.0`), `/api/health` returns the version. Packaging scripts added to `scripts/`.
@@ -20,7 +20,7 @@ The repository includes a `.gitignore` to keep out generated artifacts. Here is 
  M requirements.txt
 ?? .github/
 ?? .gitignore
-?? COORDINATION.md
+?? docs/COORDINATION.md
 ?? Dockerfile
 ?? VERSION
 ?? backend/version.py

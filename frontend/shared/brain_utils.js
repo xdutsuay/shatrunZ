@@ -2,9 +2,7 @@ import { COLORS } from '../constants.js';
 import { MODES } from '../mode_logic.js';
 import { BackendAPI } from '../api.js';
 
-export function brainNameFor({ mode, role, strategy }) {
-    return `${mode}_${role}_${strategy}`.toLowerCase();
-}
+export { brainNameFor, personaBrainName, readPersonaStatsFromStorage } from './persona.js';
 
 export function finalizeBrainsForResult({ mode, status, ai1, ai2, currentAI, isAiTurnFn }) {
     const winner = status.winner;
@@ -69,7 +67,7 @@ export async function persistGameAndBrains({
         const brains = mode === MODES.CVC
             ? [ai1.brain, ai2.brain]
             : mode === MODES.HVC
-                ? [currentAI.brain, ai1.brain, ai2.brain]
+                ? [currentAI.brain]
                 : [];
 
         const seen = new Set();

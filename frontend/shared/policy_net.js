@@ -3,6 +3,7 @@
  */
 
 import { moveToUCI } from './uci.js';
+import { getSettings } from './settings_store.js';
 
 const POLICY_KEY = 'shatrunz_use_policy_net';
 let metricsCache = null;
@@ -10,7 +11,7 @@ let metricsCache = null;
 export function isPolicyNetEnabled() {
     const el = document.getElementById('use-policy-net');
     if (el) return el.checked;
-    return localStorage.getItem(POLICY_KEY) === '1';
+    return getSettings().usePolicyNet || localStorage.getItem(POLICY_KEY) === '1';
 }
 
 export async function loadPolicyMetrics() {

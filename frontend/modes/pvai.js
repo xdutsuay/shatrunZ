@@ -1,6 +1,7 @@
 import { MODES, isAiTurn, shouldTriggerAiMove, shouldBlockHumanInput } from '../mode_logic.js';
 import { ModeController } from './mode_controller.js';
-import { getPvaiEngineMove } from '../shared/engine_move.js';
+import { getPvaiEngineMove, getEnginePersonaForSide, isPersonaCNative } from '../shared/engine_move.js';
+import { clearEnginePv, handleSearchUpdate } from '../shared/engine_pv_panel.js';
 import { explainMove } from '../shared/move_explainer.js';
 import { pvaiUndoPlies } from '../shared/undo_utils.js';
 import { maybeAutoAskHelp } from '../shared/help_signal.js';
@@ -114,6 +115,7 @@ export class PvaiModeController extends ModeController {
     }
 
     onStartAuto() {
+        this.ctx.startClocks?.();
         if (this.isAiTurnNow() && !this.ctx.game.gameOver) {
             this.triggerAiMove();
         }
@@ -122,6 +124,8 @@ export class PvaiModeController extends ModeController {
     async triggerAiMove() {
         if (this.aiMoveInFlight) return;
         const { game, session, boardView, thinkEl, currentAI } = this.ctx;
+
+        if (this.ctx.isReviewing) return;
 
         if (!shouldTriggerAiMove({
             mode: MODES.HVC,
@@ -135,11 +139,20 @@ export class PvaiModeController extends ModeController {
 
         this.aiMoveInFlight = true;
         const gen = this.bumpAiGeneration();
+        const thinkingSide = game.turn;
+        clearEnginePv(thinkingSide);
         thinkEl.innerText = 'Thinking...';
+        const onSearchUpdate = (evt) => handleSearchUpdate(thinkingSide, evt);
         await new Promise(r => setTimeout(r, 50));
-        if (!this.isAiGenerationCurrent(gen) || !this.aiMoveInFlight) return;
+        if (!this.isAiGenerationCurrent(gen) || !this.aiMoveInFlight) {
+            this.aiMoveInFlight = false;
+            thinkEl.innerText = '';
+            this.ctx.refreshUi?.();
+            return;
+        }
 
-        const useCEngine = document.getElementById('use-c-engine')?.checked ?? false;
+        const personaId = getEnginePersonaForSide('solo');
+        const usedCEngine = isPersonaCNative(personaId);
         const moveStartTime = performance.now();
         let move = null;
         try {
@@ -147,13 +160,15 @@ export class PvaiModeController extends ModeController {
                 game,
                 uciMoveHistory: session.uciMoveHistory,
                 currentAI,
-                useCEngine,
+                personaId,
+                onSearchUpdate,
             });
         } catch (err) {
             console.error('PvAI move failed:', err);
         }
 
         thinkEl.innerText = '';
+        clearEnginePv(thinkingSide);
         this.aiMoveInFlight = false;
 
         if (!move) {
@@ -167,7 +182,7 @@ export class PvaiModeController extends ModeController {
             return;
         }
 
-        const decision = useCEngine ? null : currentAI.lastDecision;
+        const decision = usedCEngine ? null : currentAI.lastDecision;
         if (maybeAutoAskHelp(this, {
             game,
             brain: currentAI.brain,
@@ -182,11 +197,16 @@ export class PvaiModeController extends ModeController {
         this.ctx.updateMoveTime(game.turn, moveTimeSeconds);
 
         const record = session.executeAndRecordMove(move.from, move.to);
+        if (!record) {
+            this.stopAuto();
+            this.ctx.statusEl.innerText = 'Illegal move rejected — auto-play stopped.';
+            return;
+        }
         boardView.render();
         this.ctx.refreshUi();
         this.ctx.maybeExplainMove(move, record, currentAI);
 
-        if (!useCEngine && currentAI.lastDecision) {
+        if (!usedCEngine && currentAI.lastDecision) {
             this._prevAiEval = currentAI.lastDecision.bestScore;
         }
 
