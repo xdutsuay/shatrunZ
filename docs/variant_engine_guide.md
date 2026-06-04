@@ -44,6 +44,16 @@ Standard Syzygy is 7-piece max on 8×8. For ShatrunZ:
 - Generation pipeline TBD (custom generator or adapted fairy tools).
 - Probe hook at `game_phases` endgame threshold.
 
+## External engine (Fairy-Stockfish)
+
+| Topic | Status |
+|-------|--------|
+| Backend external UCI engine | Supported via `UCI_ENGINE_PATH` (`engine_kind: external_uci`) |
+| Recommended strong backend | **Fairy-Stockfish** — see [`FAIRY_STOCKFISH_BACKEND.md`](FAIRY_STOCKFISH_BACKEND.md) |
+| Variant definition | `engine/variants/shatrunz.ini` (9×9, Krishna `z:mK` approximation) |
+| Krishna fidelity | Approximate — frontend `rules.js` stays authoritative for legality |
+| Browser WASM | Deferred (see [`FAIRY_STOCKFISH.md`](FAIRY_STOCKFISH.md)) |
+
 ## Multi-language engines (future)
 
 1. **Go** reference implementation for fast iteration and tests.

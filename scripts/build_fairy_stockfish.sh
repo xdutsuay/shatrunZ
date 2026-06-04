@@ -22,9 +22,12 @@ if [[ -z "${ARCH}" ]]; then
   esac
 fi
 
-echo "Building Fairy-Stockfish (ARCH=${ARCH})..."
+# largeboards=yes is REQUIRED for ShatrunZ: the variant is 9x9 and Fairy-Stockfish
+# silently rejects boards larger than 8x8 (falling back to standard chess) unless the
+# binary is compiled with large-board support.
+echo "Building Fairy-Stockfish (ARCH=${ARCH}, largeboards=yes)..."
 make clean >/dev/null 2>&1 || true
-make build -j ARCH="${ARCH}"
+make build -j ARCH="${ARCH}" largeboards=yes all=yes
 
 echo "Built Fairy-Stockfish binary under: ${FS_DIR}/src"
 

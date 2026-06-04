@@ -197,6 +197,11 @@ export function initAdmin() {
 
     refreshMlMetrics();
     updateGameHistory();
+    loadDbStats();
+
+    document.getElementById('btn-policy-train')?.addEventListener('click', () => {
+        startPolicyTraining(statusEl);
+    });
 
     document.getElementById('btn-hyper-train')?.addEventListener('click', async () => {
         await runHyperTrain();
@@ -265,6 +270,75 @@ async function refreshMlMetrics() {
     if (!el) return;
     const metrics = await loadPolicyMetrics();
     el.textContent = formatMetricsPanel(metrics);
+}
+
+async function loadDbStats() {
+    const el = document.getElementById('admin-db-stats');
+    if (!el) return;
+    try {
+        const res = await fetch('/api/db/stats').then((r) => r.json());
+        if (!res.success) throw new Error(res.error || 'failed');
+        const s = res.stats;
+        const byResult = Object.entries(s.by_result || {})
+            .map(([k, v]) => `  ${k}: ${v}`).join('\n');
+        el.textContent =
+            `games: ${s.games}\nmoves: ${s.moves}\n` +
+            `tablebase positions (<=${s.max_pieces} pieces): ${s.tablebase_positions}\n` +
+            `endgame move rows: ${s.endgame_move_rows}\nby result:\n${byResult}`;
+    } catch (e) {
+        el.textContent = `DB stats unavailable: ${e?.message || e}`;
+    }
+}
+
+function startPolicyTraining(statusEl) {
+    const logEl = document.getElementById('policy-train-log');
+    const btn = document.getElementById('btn-policy-train');
+    const epochs = parseInt(document.getElementById('policy-epochs')?.value || '3', 10);
+    const maxGames = parseInt(document.getElementById('policy-max-games')?.value || '200', 10);
+    const onlyDecisive = document.getElementById('policy-only-decisive')?.checked || false;
+
+    if (logEl) logEl.textContent = 'Starting…\n';
+    if (btn) btn.disabled = true;
+
+    fetch('/api/ml/train', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ epochs, max_games: maxGames, only_decisive: onlyDecisive }),
+    })
+        .then((r) => r.json())
+        .then((res) => {
+            if (!res.success) {
+                if (logEl) logEl.textContent += `Could not start: ${res.error || 'unknown'}\n`;
+                if (btn) btn.disabled = false;
+                return;
+            }
+            if (statusEl) statusEl.textContent = `Training ${res.job_id}…`;
+            const es = new EventSource('/api/ml/train/stream');
+            es.onmessage = (ev) => {
+                const line = ev.data;
+                if (line.startsWith('__STATUS__')) {
+                    const status = line.replace('__STATUS__', '').trim();
+                    if (statusEl) statusEl.textContent = `Training ${status}.`;
+                    if (btn) btn.disabled = false;
+                    es.close();
+                    loadDbStats();
+                    refreshMlMetrics();
+                    return;
+                }
+                if (logEl) {
+                    logEl.textContent += line + '\n';
+                    logEl.scrollTop = logEl.scrollHeight;
+                }
+            };
+            es.onerror = () => {
+                if (btn) btn.disabled = false;
+                es.close();
+            };
+        })
+        .catch((e) => {
+            if (logEl) logEl.textContent += `Error: ${e?.message || e}\n`;
+            if (btn) btn.disabled = false;
+        });
 }
 
 function resetAllPersonaBrains() {

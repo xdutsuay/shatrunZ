@@ -75,11 +75,14 @@ export async function getCEngineMove(uciMoveHistory, turn, { onSearchUpdate } = 
 
     if (useStream) {
         let best = null;
+        let bestUci = null;
         let lastInfoAt = 0;
+        let lastInfo = null;
         for await (const evt of BackendAPI.streamEngineSearch(
             uciMoveHistory, depth, randomness, clockOpts,
         )) {
             if (evt.type === 'info') {
+                lastInfo = evt;
                 const now = performance.now();
                 if (now - lastInfoAt >= 200) {
                     lastInfoAt = now;
@@ -88,7 +91,19 @@ export async function getCEngineMove(uciMoveHistory, turn, { onSearchUpdate } = 
             }
             if (evt.type === 'bestmove' && evt.move) {
                 best = parseUCIMove(evt.move);
+                bestUci = evt.move;
             }
+        }
+        // Final authoritative line: the move actually returned by this engine,
+        // bypassing the throttle so the panel ends on the played move + true depth.
+        if (bestUci) {
+            onSearchUpdate({
+                type: 'info',
+                depth: lastInfo?.depth,
+                cp: lastInfo?.cp,
+                pv: [bestUci],
+                final: true,
+            });
         }
         return best;
     }

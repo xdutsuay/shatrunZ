@@ -46,7 +46,9 @@ export function handleSearchUpdate(side, evt) {
     if (!evt || evt.type !== 'info') return;
     const key = side === COLORS.WHITE ? 'w' : 'b';
     const now = performance.now();
-    if (now - lastPvPaintAt[key] < PV_THROTTLE_MS) return;
+    // The final line (the move that will actually be played) always paints,
+    // bypassing the throttle, so the panel ends on the engine's real choice.
+    if (!evt.final && now - lastPvPaintAt[key] < PV_THROTTLE_MS) return;
     lastPvPaintAt[key] = now;
 
     const el = side === COLORS.WHITE

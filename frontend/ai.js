@@ -221,7 +221,11 @@ export class AIPlayer {
 
         const gameHash = game.getHash();
         const positionValue = this.brain.getPositionValue(gameHash);
-        const maxDepth = this.depth + endgameDepthBonus(game);
+        let maxDepth = this.depth + endgameDepthBonus(game);
+        // Under a clock budget, cap the top of iterative deepening: the deadline is
+        // primary, but a sane ceiling stops us from sinking the whole budget into a
+        // deep iteration that gets cut and discarded (ID keeps the last full depth).
+        if (budgetMs > 0) maxDepth = Math.min(maxDepth, 8);
 
         let policyBonuses = {};
         if (isPolicyNetEnabled() && budgetMs <= 0) {
@@ -237,6 +241,7 @@ export class AIPlayer {
         let bestMove = null;
         let bestScore = -Infinity;
         let secondScore = -Infinity;
+        let lastCompletedDepth = 0;
 
         const yieldToUi = async () => {
             if (fastMode) return;
@@ -284,6 +289,7 @@ export class AIPlayer {
                 bestMove = localBest;
                 bestScore = localScore;
                 secondScore = localSecond;
+                lastCompletedDepth = depth;
                 if (onSearchUpdate) {
                     const pb = game.board[localBest.from.r][localBest.from.c];
                     onSearchUpdate({
@@ -311,12 +317,22 @@ export class AIPlayer {
             bestScore,
             secondScore: secondScore === -Infinity ? bestScore : secondScore,
             move: bestMove,
-            depthReached: bestMove ? maxDepth : 0,
+            depthReached: bestMove ? lastCompletedDepth : 0,
         };
 
         if (bestMove) {
             const moveStr = `${bestMove.from.r}${bestMove.from.c}-${bestMove.to.r}${bestMove.to.c}`;
             this.brain.recordMove(gameHash, moveStr);
+            if (onSearchUpdate) {
+                const pb = game.board[bestMove.from.r][bestMove.from.c];
+                onSearchUpdate({
+                    type: 'info',
+                    depth: lastCompletedDepth,
+                    cp: Math.round(bestScore),
+                    pv: pb ? [moveToUCI(bestMove.from, bestMove.to, pb)] : [],
+                    final: true,
+                });
+            }
         }
 
         return bestMove;

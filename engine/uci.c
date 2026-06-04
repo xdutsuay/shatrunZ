@@ -47,13 +47,27 @@ static int compute_go_time_ms(const char *line, Color side) {
     remaining = (side == WHITE) ? btime : wtime;
     inc = (side == WHITE) ? binc : winc;
   }
+  if (remaining <= 0) {
+    return 0;
+  }
 
-  int budget = remaining / 20 + inc;
+  /* Mirror frontend/shared/clock_budget.js: never plan to spend more than 40% of
+     the remaining clock on one move, keep a 150ms reserve, bound the increment.
+     Prevents burning the whole clock on the first move when inc is large / time low. */
+  int budget = remaining / 20 + (inc * 4) / 5;
+  int cap = (remaining * 2) / 5; /* 40% */
+  if (budget > cap) {
+    budget = cap;
+  }
+  int usable = remaining - 150;
+  if (usable <= 0) {
+    return 50;
+  }
+  if (budget > usable) {
+    budget = usable;
+  }
   if (budget < 50) {
     budget = 50;
-  }
-  if (budget > remaining && remaining > 0) {
-    budget = remaining;
   }
   return budget;
 }

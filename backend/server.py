@@ -16,6 +16,8 @@ import re
 # Version helper
 from backend.version import get_repo_version
 from backend.stats import aggregate_games
+from backend import db as gamedb
+from backend import training_jobs
 
 # Add engine to path
 sys.path.insert(0, str(Path(__file__).parent.parent / 'engine'))
@@ -162,7 +164,28 @@ def save_game():
     meta_filepath = GAMES_DIR / f"game_{timestamp}.json"
     with open(meta_filepath, 'w') as f:
         json.dump(metadata, f, indent=2)
-    
+
+    # Dual-write into the SQLite system-of-record (best-effort; never blocks save).
+    try:
+        conn = gamedb.connect()
+        gamedb.init_db(conn)
+        gamedb.upsert_game(conn, {
+            'source': 'live',
+            'source_ref': f'saved:game_{timestamp}.json',
+            'white': metadata['white'],
+            'black': metadata['black'],
+            'white_persona': metadata.get('engine_white'),
+            'black_persona': metadata.get('engine_black'),
+            'result': metadata['result'],
+            'moves_uci': metadata.get('uci_moves') or metadata.get('moves') or [],
+            'mode': metadata.get('mode'),
+            'created_at': timestamp,
+        })
+        conn.commit()
+        conn.close()
+    except Exception as exc:
+        print(f"⚠️  DB write skipped: {exc}")
+
     print(f"✅ Game saved: {filename}")
     return jsonify({'success': True, 'filename': filename})
 
@@ -409,6 +432,73 @@ def training_runs():
         except Exception:
             continue
     return jsonify({'success': True, 'runs': runs})
+
+
+@app.route('/api/db/stats', methods=['GET'])
+def db_stats():
+    try:
+        conn = gamedb.connect()
+        gamedb.init_db(conn)
+        data = gamedb.stats(conn)
+        conn.close()
+        return jsonify({'success': True, 'stats': data})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/tablebase', methods=['GET'])
+def tablebase_lookup():
+    """Endgame tablebase lookup by position key (Game.getHash())."""
+    key = request.args.get('key', '')
+    if not key:
+        return jsonify({'success': False, 'error': 'missing key'}), 400
+    try:
+        conn = gamedb.connect()
+        gamedb.init_db(conn)
+        hit = gamedb.tablebase_lookup(conn, key)
+        conn.close()
+        return jsonify({'success': True, 'hit': hit})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/ml/train', methods=['POST'])
+def ml_train_start():
+    """Start a policy-net retraining job (export from SQLite -> ml.train)."""
+    data = request.json or {}
+    params = {
+        'epochs': data.get('epochs', 3),
+        'max_games': data.get('max_games', 200),
+        'only_decisive': bool(data.get('only_decisive', False)),
+    }
+    started, job_id = training_jobs.start_job(params)
+    if not started:
+        return jsonify({'success': False, 'error': 'A training job is already running',
+                        'job_id': job_id}), 409
+    return jsonify({'success': True, 'job_id': job_id})
+
+
+@app.route('/api/ml/train/status', methods=['GET'])
+def ml_train_status():
+    job = training_jobs.current_job()
+    if not job:
+        return jsonify({'success': True, 'job': None})
+    return jsonify({'success': True, 'job': job.snapshot()})
+
+
+@app.route('/api/ml/train/stream', methods=['GET'])
+def ml_train_stream():
+    """Server-sent events stream of the current job's log lines."""
+    job = training_jobs.current_job()
+    if not job:
+        return jsonify({'success': False, 'error': 'no job'}), 404
+
+    def generate():
+        for line in job.stream():
+            yield f"data: {line}\n\n"
+
+    return Response(generate(), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
 @app.route('/<path:path>')

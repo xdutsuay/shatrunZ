@@ -137,14 +137,18 @@ export class AivaiModeController extends ModeController {
         }
 
         thinkEl.innerText = '';
-        clearEnginePv(thinkingSide);
         this.aiMoveInFlight = false;
 
         if (!move) {
+            // Engine produced nothing useful; clear its (now meaningless) PV line.
+            clearEnginePv(thinkingSide);
             this.stopAuto();
             this.ctx.statusEl.innerText = 'AI could not find a move — auto-play stopped.';
             return;
         }
+        // NOTE: the final PV line (the move just played, emitted with final:true by the
+        // same engine) is intentionally left visible under the AI name until this side
+        // thinks again (clearEnginePv runs at the start of its next triggerAiMove).
 
         const ai = pickAiForTurn(game.turn, this.ctx.ai1, this.ctx.ai2);
         if (maybeAutoAskHelp(this, {

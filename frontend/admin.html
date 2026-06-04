@@ -154,6 +154,33 @@
             <button id="btn-hyper-train" class="btn warning full-width">⚡ Hyper-Train</button>
 
             <div class="panel-section">
+                <h3>Policy net (server retrain)</h3>
+                <p class="help-text">Trains the policy/value net from the SQLite game store
+                    (export → behavior-cloning). Runs on the server; progress streams live below.</p>
+                <div class="control-group">
+                    <label>Epochs</label>
+                    <input id="policy-epochs" type="number" min="1" max="50" value="3">
+                </div>
+                <div class="control-group">
+                    <label>Max games <span class="help-sub">(replay is O(n); large runs take minutes)</span></label>
+                    <input id="policy-max-games" type="number" min="5" max="100000" value="50">
+                </div>
+                <div class="control-group">
+                    <label>
+                        <input type="checkbox" id="policy-only-decisive">
+                        Only decisive games (drop draws/unfinished)
+                    </label>
+                </div>
+                <button id="btn-policy-train" class="btn primary full-width">🧠 Retrain policy net</button>
+                <pre id="policy-train-log" class="ml-metrics-panel" style="max-height:220px;overflow:auto"></pre>
+            </div>
+
+            <div class="panel-section">
+                <h3>Game database</h3>
+                <pre id="admin-db-stats" class="ml-metrics-panel">Loading…</pre>
+            </div>
+
+            <div class="panel-section">
                 <h3>Training runs</h3>
                 <div id="admin-training-runs" class="move-list">Loading…</div>
             </div>

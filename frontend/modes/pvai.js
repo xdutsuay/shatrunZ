@@ -168,10 +168,11 @@ export class PvaiModeController extends ModeController {
         }
 
         thinkEl.innerText = '';
-        clearEnginePv(thinkingSide);
         this.aiMoveInFlight = false;
 
         if (!move) {
+            // Engine produced nothing useful; clear its (now meaningless) PV line.
+            clearEnginePv(thinkingSide);
             const status = game.checkStatus();
             if (status.over) {
                 this.ctx.onGameEnd(status);
