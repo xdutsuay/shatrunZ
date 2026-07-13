@@ -1,0 +1,939 @@
+{
+  "startpos": {
+    "depth1": 22,
+    "depth2": 484,
+    "depth3": 11900
+  },
+  "seeded": [
+    {
+      "seed": 1000,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 8
+          },
+          "to": {
+            "r": 5,
+            "c": 8,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 7
+          },
+          "to": {
+            "r": 2,
+            "c": 7,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 506,
+      "position_key": "w|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp11bp12bp13bp14bp15bp16bp18bp27wp58wp70wp71wp72wp73wp74wp75wp76wp77wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1001,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 1
+          },
+          "to": {
+            "r": 5,
+            "c": 1,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 0
+          },
+          "to": {
+            "r": 3,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 0
+          },
+          "to": {
+            "r": 5,
+            "c": 0,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 552,
+      "position_key": "b|br00bn01bb02bq03bk04bb05bz06bn07br08bp11bp12bp13bp14bp15bp16bp17bp18bp30wp50wp51wp72wp73wp74wp75wp76wp77wp78wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1002,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 4
+          },
+          "to": {
+            "r": 5,
+            "c": 4,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 3
+          },
+          "to": {
+            "r": 3,
+            "c": 3,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 7
+          },
+          "to": {
+            "r": 6,
+            "c": 7,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 0,
+            "c": 7
+          },
+          "to": {
+            "r": 2,
+            "c": 6,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 1086,
+      "position_key": "w|br00bn01bb02bq03bk04bb05bz06br08bp10bp11bp12bp14bp15bp16bp17bp18bn26bp33wp54wp67wp70wp71wp72wp73wp75wp76wp78wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1003,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 3
+          },
+          "to": {
+            "r": 5,
+            "c": 3,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 0
+          },
+          "to": {
+            "r": 2,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 8,
+            "c": 4
+          },
+          "to": {
+            "r": 7,
+            "c": 3,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 8
+          },
+          "to": {
+            "r": 3,
+            "c": 8,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 5
+          },
+          "to": {
+            "r": 5,
+            "c": 5,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 594,
+      "position_key": "b|br00bn01bb02bq03bk04bb05bz06bn07br08bp11bp12bp13bp14bp15bp16bp17bp20bp38wp53wp55wp70wp71wp72wk73wp74wp76wp77wp78wr80wn81wb82wq83wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1004,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 1
+          },
+          "to": {
+            "r": 5,
+            "c": 1,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 1
+          },
+          "to": {
+            "r": 2,
+            "c": 1,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 529,
+      "position_key": "w|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp12bp13bp14bp15bp16bp17bp18bp21wp51wp70wp72wp73wp74wp75wp76wp77wp78wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1005,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 4
+          },
+          "to": {
+            "r": 5,
+            "c": 4,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 5
+          },
+          "to": {
+            "r": 3,
+            "c": 5,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 8,
+            "c": 1
+          },
+          "to": {
+            "r": 6,
+            "c": 0,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 769,
+      "position_key": "b|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp11bp12bp13bp14bp16bp17bp18bp35wp54wn60wp70wp71wp72wp73wp75wp76wp77wp78wr80wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1006,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 3
+          },
+          "to": {
+            "r": 5,
+            "c": 3,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 0
+          },
+          "to": {
+            "r": 2,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 8,
+            "c": 4
+          },
+          "to": {
+            "r": 7,
+            "c": 3,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 2,
+            "c": 0
+          },
+          "to": {
+            "r": 3,
+            "c": 0,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 598,
+      "position_key": "w|br00bn01bb02bq03bk04bb05bz06bn07br08bp11bp12bp13bp14bp15bp16bp17bp18bp30wp53wp70wp71wp72wk73wp74wp75wp76wp77wp78wr80wn81wb82wq83wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1007,
+      "path": [
+        {
+          "from": {
+            "r": 8,
+            "c": 1
+          },
+          "to": {
+            "r": 6,
+            "c": 2,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 0
+          },
+          "to": {
+            "r": 3,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 6,
+            "c": 2
+          },
+          "to": {
+            "r": 5,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 2
+          },
+          "to": {
+            "r": 3,
+            "c": 2,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 0
+          },
+          "to": {
+            "r": 6,
+            "c": 0,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 552,
+      "position_key": "b|br00bn01bb02bq03bk04bb05bz06bn07br08bp11bp13bp14bp15bp16bp17bp18bp30bp32wn50wp60wp71wp72wp73wp74wp75wp76wp77wp78wr80wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1008,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 8
+          },
+          "to": {
+            "r": 6,
+            "c": 8,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 5
+          },
+          "to": {
+            "r": 3,
+            "c": 5,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 504,
+      "position_key": "w|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp11bp12bp13bp14bp16bp17bp18bp35wp68wp70wp71wp72wp73wp74wp75wp76wp77wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1009,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 7
+          },
+          "to": {
+            "r": 5,
+            "c": 7,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 4
+          },
+          "to": {
+            "r": 3,
+            "c": 4,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 4
+          },
+          "to": {
+            "r": 6,
+            "c": 4,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 1017,
+      "position_key": "b|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp11bp12bp13bp15bp16bp17bp18bp34wp57wp64wp70wp71wp72wp73wp75wp76wp78wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1010,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 4
+          },
+          "to": {
+            "r": 5,
+            "c": 4,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 6
+          },
+          "to": {
+            "r": 3,
+            "c": 6,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 8,
+            "c": 5
+          },
+          "to": {
+            "r": 4,
+            "c": 1,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 0
+          },
+          "to": {
+            "r": 2,
+            "c": 0,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 911,
+      "position_key": "w|br00bn01bb02bq03bk04bb05bz06bn07br08bp11bp12bp13bp14bp15bp17bp18bp20bp36wb41wp54wp70wp71wp72wp73wp75wp76wp77wp78wr80wn81wb82wq83wk84wz86wn87wr88"
+    },
+    {
+      "seed": 1011,
+      "path": [
+        {
+          "from": {
+            "r": 8,
+            "c": 7
+          },
+          "to": {
+            "r": 6,
+            "c": 8,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 5
+          },
+          "to": {
+            "r": 2,
+            "c": 5,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 8,
+            "c": 1
+          },
+          "to": {
+            "r": 6,
+            "c": 2,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 7
+          },
+          "to": {
+            "r": 2,
+            "c": 7,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 6,
+            "c": 8
+          },
+          "to": {
+            "r": 8,
+            "c": 7,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 576,
+      "position_key": "b|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp11bp12bp13bp14bp16bp18bp25bp27wn62wp70wp71wp72wp73wp74wp75wp76wp77wp78wr80wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1012,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 3
+          },
+          "to": {
+            "r": 6,
+            "c": 3,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 4
+          },
+          "to": {
+            "r": 2,
+            "c": 4,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 956,
+      "position_key": "w|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp11bp12bp13bp15bp16bp17bp18bp24wp63wp70wp71wp72wp74wp75wp76wp77wp78wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1013,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 0
+          },
+          "to": {
+            "r": 6,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 0
+          },
+          "to": {
+            "r": 2,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 7
+          },
+          "to": {
+            "r": 5,
+            "c": 7,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 441,
+      "position_key": "b|br00bn01bb02bq03bk04bb05bz06bn07br08bp11bp12bp13bp14bp15bp16bp17bp18bp20wp57wp60wp71wp72wp73wp74wp75wp76wp78wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1014,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 1
+          },
+          "to": {
+            "r": 5,
+            "c": 1,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 6
+          },
+          "to": {
+            "r": 3,
+            "c": 6,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 8,
+            "c": 2
+          },
+          "to": {
+            "r": 6,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 8
+          },
+          "to": {
+            "r": 3,
+            "c": 8,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 525,
+      "position_key": "w|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp11bp12bp13bp14bp15bp17bp36bp38wp51wb60wp70wp72wp73wp74wp75wp76wp77wp78wr80wn81wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1015,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 2
+          },
+          "to": {
+            "r": 5,
+            "c": 2,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 8
+          },
+          "to": {
+            "r": 2,
+            "c": 8,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 5
+          },
+          "to": {
+            "r": 6,
+            "c": 5,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 6
+          },
+          "to": {
+            "r": 2,
+            "c": 6,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 3
+          },
+          "to": {
+            "r": 6,
+            "c": 3,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 781,
+      "position_key": "b|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp11bp12bp13bp14bp15bp17bp26bp28wp52wp63wp65wp70wp71wp74wp76wp77wp78wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1016,
+      "path": [
+        {
+          "from": {
+            "r": 8,
+            "c": 7
+          },
+          "to": {
+            "r": 6,
+            "c": 8,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 8
+          },
+          "to": {
+            "r": 3,
+            "c": 8,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 530,
+      "position_key": "w|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp11bp12bp13bp14bp15bp16bp17bp38wn68wp70wp71wp72wp73wp74wp75wp76wp77wp78wr80wn81wb82wq83wk84wb85wz86wr88"
+    },
+    {
+      "seed": 1017,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 2
+          },
+          "to": {
+            "r": 6,
+            "c": 2,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 0
+          },
+          "to": {
+            "r": 2,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 0
+          },
+          "to": {
+            "r": 6,
+            "c": 0,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 462,
+      "position_key": "b|br00bn01bb02bq03bk04bb05bz06bn07br08bp11bp12bp13bp14bp15bp16bp17bp18bp20wp60wp62wp71wp73wp74wp75wp76wp77wp78wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1018,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 7
+          },
+          "to": {
+            "r": 5,
+            "c": 7,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 7
+          },
+          "to": {
+            "r": 2,
+            "c": 7,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 3
+          },
+          "to": {
+            "r": 5,
+            "c": 3,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 4
+          },
+          "to": {
+            "r": 2,
+            "c": 4,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 986,
+      "position_key": "w|br00bn01bb02bq03bk04bb05bz06bn07br08bp10bp11bp12bp13bp15bp16bp18bp24bp27wp53wp57wp70wp71wp72wp74wp75wp76wp78wr80wn81wb82wq83wk84wb85wz86wn87wr88"
+    },
+    {
+      "seed": 1019,
+      "path": [
+        {
+          "from": {
+            "r": 7,
+            "c": 0
+          },
+          "to": {
+            "r": 5,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 8
+          },
+          "to": {
+            "r": 3,
+            "c": 8,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 8,
+            "c": 0
+          },
+          "to": {
+            "r": 7,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 1,
+            "c": 0
+          },
+          "to": {
+            "r": 2,
+            "c": 0,
+            "isCastling": false
+          }
+        },
+        {
+          "from": {
+            "r": 7,
+            "c": 0
+          },
+          "to": {
+            "r": 6,
+            "c": 0,
+            "isCastling": false
+          }
+        }
+      ],
+      "depth": 2,
+      "nodes": 660,
+      "position_key": "b|br00bn01bb02bq03bk04bb05bz06bn07br08bp11bp12bp13bp14bp15bp16bp17bp20bp38wp50wr60wp71wp72wp73wp74wp75wp76wp77wp78wn81wb82wq83wk84wb85wz86wn87wr88"
+    }
+  ]
+}

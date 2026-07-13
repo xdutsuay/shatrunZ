@@ -22,6 +22,29 @@ Legend: ✅ done · ▢ not started · — n/a
   --target web` validated end to end (installs `wasm-bindgen-cli` on first
   run, ~1m40s cold). Root `Makefile` added (`just` isn't preinstalled here).
   This file created. Nothing ported yet — M1 (core rules/game) is next.
+- 2026-07-13: M1 (rules/game, position-only variant). Ported
+  `piece.rs`/`board.rs`/`moves.rs`/`rules.rs`/`game.rs` to `shatrunz-core` —
+  move generation, check/checkmate/stalemate detection, castling
+  (position-only, matching JS — the C engine's rights-mask variant is
+  deferred to M4), auto-queen promotion (C's underpromotion variant also
+  deferred to M4), 5-fold repetition, 240-ply/±300 adjudication,
+  `position_key`. **P1 perft gate is green**: `tools/js/perft.mjs` dumps
+  startpos perft(1-3) + 20 seeded random-opening positions (mulberry32,
+  depth 2) from the JS oracle into
+  `crates/shatrunz-core/tests/fixtures/perft_fixture.json`;
+  `tests/perft.rs` replays them through the Rust port and asserts exact
+  node-count + position_key equality — all green
+  (`cargo test -p shatrunz-core`). `tests/game_status.rs` additionally
+  cross-checks `position_key`/status-string format directly against
+  `node -e "new Game()..."` output, the king-absent-in-check quirk, and a
+  full castling execute/undo round trip, and two synthetic positions
+  (ladder-mate CHECKMATE, corner Stalemate) built by hand-placing pieces and
+  cross-checked against `node -e "new Game()..."` output before being ported
+  — both match. **Not yet parity-tested**: the `"Draw by Repetition"` and
+  `"Adjudicated: ... (material)"` status strings (not exercised by any
+  perft-depth-2/3 game or hand-built position yet), and move-generation
+  *order* (perft only checks counts) — both deferred to the P3/P4 gates in
+  M2. Next: M2 (both evals + both searches + clock_budget).
 
 ## Toolchain setup (fresh container, one command each)
 
@@ -40,22 +63,24 @@ environment (verified 2026-07-13).
 
 | Item | Source | Rust location | ported | parity-verified | old deleted |
 |---|---|---|---|---|---|
-| Board setup: 9×9, back rank `R N B Q K B Z N R`, pawns rows 1/7 | `frontend/game.js:6-22`, `frontend/constants.js:1-4` | `shatrunz-core::board` (M1) | ▢ | ▢ | ▢ |
-| Krishna (`z`, weight 1200): step-only to empty squares, never captures, never captured, gives no check, blocks sliding rays | `frontend/rules.js:59` (knight/king/krishna branch), filtered out of capture targets throughout `rules.js` | `shatrunz-core::piece` / `moves` (M1) | ▢ | ▢ | ▢ |
-| Pawn moves: single/double push from start rank, diagonal capture only, no en passant | `frontend/rules.js:29-43` | `shatrunz-core::moves` (M1) | ▢ | ▢ | ▢ |
-| Promotion at row 0/8: JS auto-queens; C engine generates underpromotions | `frontend/rules.js` (promotion branch, TBD line on port), `engine/position.c` | `CastlingMode`-style `PromotionMode::AutoQueen \| Underpromotions` flag (M1) | ▢ | ▢ | ▢ |
-| Castling: king c4→c6 (rook 8→5) / c4→c2 (rook 0→3), path-empty + not-attacked; JS is position-only, C tracks a 4-bit rights mask | `frontend/rules.js:91-126` | `shatrunz-core::rules::CastlingMode::PositionOnly \| Rights` (M1) | ▢ | ▢ | ▢ |
-| `isKingInCheck` returns true if king is absent from the board | `frontend/rules.js` (king-search helper) | `shatrunz-core::rules` (M1) | ▢ | ▢ | ▢ |
-| Move generation order (affects search tie-breaking) — must replicate JS/C iteration order exactly | `frontend/rules.js` (per-piece loops), `engine/position.c` | `shatrunz-core::moves` (M1) | ▢ | ▢ | ▢ |
+| Board setup: 9×9, back rank `R N B Q K B Z N R`, pawns rows 1/7 | `frontend/game.js:6-22`, `frontend/constants.js:1-4` | `shatrunz-core::board::Board::setup` | ✅ | ✅ (perft) | ▢ |
+| Krishna (`z`, weight 1200): step-only to empty squares, never captures, never captured, gives no check, blocks sliding rays | `frontend/rules.js:59-77` (krishna branch + generic capture filter), `rules.js:170,219` (blocks rays) | `shatrunz-core::rules` (in `get_legal_moves`/`is_square_attacked`) | ✅ | ✅ (perft, transitively) | ▢ |
+| Pawn moves: single/double push from start rank, diagonal capture only, no en passant | `frontend/rules.js:29-43` | `shatrunz-core::rules::get_legal_moves` | ✅ | ✅ (perft) | ▢ |
+| Promotion at row 0/8: JS auto-queens | `frontend/rules.js` (destination-row check), `frontend/game.js:61-64` | `shatrunz-core::game::execute_move` | ✅ (JS variant) | ✅ (perft) | ▢ |
+| Promotion: C engine underpromotion variant | `engine/position.c` | `PromotionMode` flag | ▢ (deferred to M4) | ▢ | ▢ |
+| Castling: king c4→c6 (rook 8→5) / c4→c2 (rook 0→3), path-empty + not-attacked; JS is position-only | `frontend/rules.js:91-131` | `shatrunz-core::rules::get_legal_moves` | ✅ (JS position-only variant) | ✅ (perft + `tests/game_status.rs` execute/undo round trip) | ▢ |
+| Castling: C engine 4-bit rights-mask variant | `engine/position.c` | `CastlingMode::Rights` | ▢ (deferred to M4) | ▢ | ▢ |
+| `isKingInCheck` returns true if king is absent from the board | `frontend/rules.js:206` | `shatrunz-core::rules::is_king_in_check` | ✅ | ✅ (`tests/game_status.rs`) | ▢ |
+| Move generation order (affects search tie-breaking) — must replicate JS/C iteration order exactly | `frontend/rules.js` (per-piece loops) | `shatrunz-core::rules::get_legal_moves` | ✅ (order copied 1:1) | ▢ (perft only checks counts; order parity deferred to P3 search-tie-break test in M2) | ▢ |
 
 ## Game state
 
 | Item | Source | Rust location | ported | parity-verified | old deleted |
 |---|---|---|---|---|---|
-| **FROZEN** Position key: `"{turn}\|"` + `"{color}{type}{r}{c}"` per occupied square, row-major — SQLite tablebase key via `/api/tablebase?key=` | `frontend/game.js:25-33` (`getHash`) | `shatrunz-core::game::position_key` (M1) | ▢ | ▢ | ▢ |
-| 5-fold repetition → draw | `frontend/game.js:205-208` | `shatrunz-core::game` (M1) | ▢ | ▢ | ▢ |
-| Adjudication after 240 half-moves if `\|material\| >= 300` | `frontend/game.js:211-217` | `shatrunz-core::game` (M1) | ▢ | ▢ | ▢ |
-| **FROZEN** status strings: `"CHECKMATE! White Wins"` / `"...Black Wins"`, `"Draw by Repetition"`, `"Adjudicated: {color} wins (material)"`, `" (CHECK)"` suffix — UI/tests match on these | `frontend/game.js:208,217,224,231` | `shatrunz-core::game::Status` (M1) | ▢ | ▢ | ▢ |
+| **FROZEN** Position key: `"{turn}\|"` + `"{color}{type}{r}{c}"` per occupied square, row-major — SQLite tablebase key via `/api/tablebase?key=` | `frontend/game.js:25-33` (`getHash`) | `shatrunz-core::game::Game::position_key` | ✅ | ✅ (`tests/game_status.rs` cross-checked against `node -e` output; `tests/perft.rs` checks it after replaying 20 seeded openings) | ▢ |
+| 5-fold repetition → draw | `frontend/game.js:205-208` | `shatrunz-core::game::Game::check_status` | ✅ | ▢ (not yet exercised by a test — perft games are too short to repeat 5x) | ▢ |
+| Adjudication after 240 half-moves if `\|material\| >= 300` | `frontend/game.js:211-217` | `shatrunz-core::game::Game::check_status` | ✅ | ▢ (not yet exercised by a test) | ▢ |
+| **FROZEN** status strings: `"CHECKMATE! White Wins"` / `"...Black Wins"`, `"Draw by Repetition"`, `"Adjudicated: {color} wins (material)"`, `" (CHECK)"` suffix, `"White's Turn"`/`"Black's Turn"`, `"Stalemate"` — UI/tests match on these | `frontend/game.js:208,217,224,226,230-231` | `shatrunz-core::game::Status` | ✅ (all branches implemented) | partial — ✅ `"White's Turn"`, `"CHECKMATE! White Wins"`, `"Stalemate"` (`tests/game_status.rs`, synthetic positions cross-checked against the JS oracle); ▢ `"Draw by Repetition"`, `"Adjudicated: ..."`, `" (CHECK)"` suffix not yet exercised | ▢ |
 
 ## Evaluation
 

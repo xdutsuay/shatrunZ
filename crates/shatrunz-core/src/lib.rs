@@ -2,4 +2,10 @@
 //! milestone per docs/plans/PLAN_03_rust_port.md; see docs/RUST_PORT.md
 //! for the parity checklist.
 
+pub mod board;
+pub mod game;
+pub mod moves;
+pub mod piece;
+pub mod rules;
+
 pub const CRATE_NAME: &str = "shatrunz-core";
