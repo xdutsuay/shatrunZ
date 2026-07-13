@@ -1,0 +1,13 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/shatrunz-core",
+    "crates/shatrunz-wasm",
+    "crates/shatrunz-engine",
+    "crates/shatrunz-server",
+    "crates/shatrunz-mcp",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"

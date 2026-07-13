@@ -1,0 +1,15 @@
+[package]
+name = "shatrunz-server"
+edition.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "shatrunz_server"
+path = "src/main.rs"
+
+[dependencies]
+shatrunz-core = { path = "../shatrunz-core" }
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "process"] }
+tower-http = { version = "0.5", features = ["fs"] }
+rusqlite = { version = "0.31", features = ["bundled"] }

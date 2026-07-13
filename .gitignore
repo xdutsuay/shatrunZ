@@ -13,6 +13,12 @@ dist/
 engine/*.o
 engine/shatrunz_engine
 
+# Rust
+/target/
+crates/*/target/
+frontend/pkg/
+frontend/pkg-node/
+
 # Runtime data
 data/
 

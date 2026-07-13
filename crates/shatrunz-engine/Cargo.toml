@@ -1,0 +1,11 @@
+[package]
+name = "shatrunz-engine"
+edition.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "shatrunz_engine"
+path = "src/main.rs"
+
+[dependencies]
+shatrunz-core = { path = "../shatrunz-core" }

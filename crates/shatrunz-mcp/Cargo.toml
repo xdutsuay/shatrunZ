@@ -1,0 +1,11 @@
+[package]
+name = "shatrunz-mcp"
+edition.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "shatrunz-mcp"
+path = "src/main.rs"
+
+[dependencies]
+shatrunz-core = { path = "../shatrunz-core" }
