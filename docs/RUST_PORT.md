@@ -144,9 +144,32 @@ Legend: ✅ done · ▢ not started · — n/a
   UCI commands (no native perft command exists) — `tools/c/perft_dump.py`.
   Depth-4 (292,331 nodes) matching exactly after the two bug-for-bug fixes
   is strong evidence no further move-generation divergences remain
-  undetected at this depth. Next within M4: `search::engine` (now
-  unblocked), the UCI protocol handler binary, FEN, and the P5 gate
-  (existing pytest suite + mate-in-1 script against the Rust binary).
+  undetected at this depth. Ported `search::engine` (`engine/search.c`)
+  on top of `engine_position`: `order_moves` (the exact swap algorithm,
+  not a stable sort), `quiescence`/`alphabeta` with mate scores,
+  `search`/`search_timed`. Found a third issue while building the P3-
+  analog parity test, but a different *kind* than the first two: `search()`
+  passes `INT_MIN`/`INT_MAX` as alpha-beta bounds, and `alphabeta`'s first
+  recursive call negates them before `alpha` is narrowed — signed-overflow
+  UB in C for depth ≥ 2. Unlike the two `engine_position` bugs (fully
+  deterministic and explained by the move-generation logic), this one
+  turned out to be genuinely unstable: a harness that reimplements
+  `search()`'s loop body inline — calling the exact same shipped
+  `alphabeta`/`order_moves` object code — produced a uniformly corrupted
+  score for every root move at depth 3, while a harness calling the real
+  exported `search()` function directly reproduced the shipped binary's
+  actual bestmove choice, at both `-O0` and `-O3`. Since even hand-
+  transcribing the identical algorithm into a fresh translation unit
+  changes the outcome, there's no stable "real" value here to bit-match —
+  so `search::engine` deliberately uses a large finite sentinel instead of
+  `i32::MIN`/`i32::MAX` (the evidently-intended behavior, not the UB
+  artifact), and the parity test only bit-matches depth 1 (confirmed
+  stable across rebuilds — quiescence's stand-pat check narrows alpha
+  before any negation happens there) plus a legal-move sanity check for
+  depth 2-3. Full writeup in "Search" above and in
+  `search::engine`'s module doc. Next within M4: the UCI protocol handler
+  binary, FEN, and the P5 gate (existing pytest suite + mate-in-1 script
+  against the Rust binary).
 
 ## Toolchain setup (fresh container, one command each)
 
@@ -206,7 +229,8 @@ environment (verified 2026-07-13).
 | JS persona search: UI yield scheduler (`shouldYield`/`lastYieldTime`/`setTimeout`) | `frontend/ai.js` | — (not applicable in Rust) | — (superseded, not ported) | — | ▢ |
 | `AIPlayer.generateMoves`/`applyMove`/`undoMove` (board-array based) — dead code, unused anywhere in the JS codebase (grepped) | `frontend/ai.js:179-211` | — | — (intentionally not ported) | — | ▢ |
 | `Game.makeMove`/`undoMove` (lightweight AI make/unmake, separate from `executeMove`/`undoLastMove`) | `frontend/game.js:102-171` | `shatrunz-core::game::Game::make_move`/`undo_move` | ✅ | ✅ (transitively, via `search_persona_parity.rs` — every search node uses these) | ▢ |
-| C engine search: capture-first ordering, quiescence with checks, mate scores `-100000+ply`, `search_timed` per-depth re-search at 0.9 budget | `engine/search.c` (212 lines) | `shatrunz-core::search::engine` | ▢ **deferred to M4** — `search.c` is written against `position.c`'s own move generator (castling-rights bitmask, 4-way underpromotion), which isn't ported; porting the search now would mean building it against the wrong move generator. Bundling it with M4's "rights-mode + underpromotions" work (already scoped there in the plan) avoids a rewrite. | ▢ | ▢ |
+| C engine search: capture-first ordering (exact `order_moves` swap algorithm, not a stable sort — affects tie-breaking), quiescence with checks, mate scores `-100000+ply`, `search`/`search_timed` per-depth re-search at 0.9 budget | `engine/search.c` (212 lines) | `shatrunz-core::search::engine` | ✅ | ✅ (depth-1 bit-exact bestmove vs the real binary in `tests/search_engine_parity.rs`, depth 2-3 legal-move sanity — see the "root alpha=INT_MIN" row below for why depth ≥ 2 isn't bit-exact) | ▢ |
+| **NOT a bug-for-bug case — genuine compiler UB, no stable value to replicate**: `search()`'s root call passes `INT_MIN`/`INT_MAX` into `alphabeta`, which negates them before `alpha` is narrowed — signed-integer-overflow UB in C for any search depth ≥ 2. Empirically confirmed unstable: a harness reimplementing `search()`'s exact loop body (calling the real shipped `alphabeta`/`order_moves` object code) produced a uniformly corrupted score for every root move at depth 3, while a harness calling the real exported `search()` function directly reproduced the shipped binary's actual bestmove — at both `-O0` and `-O3`. Since hand-transcribing the identical algorithm into a fresh translation unit changes the outcome, there is no "real" bestmove to bit-match for depth ≥ 2, and pinning a test to one compiler's incidental codegen would be fragile against any rebuild | `engine/search.c:148-178` (root call), `:117-145` (`alphabeta`'s negation) | `shatrunz-core::search::engine` uses a large finite sentinel (`INF = 10_000_000`) instead of `i32::MIN`/`i32::MAX` — the *intended* alpha-beta behavior, not the accidental UB artifact | — (deliberately not reproduced; see `search::engine`'s module doc for the full investigation) | ✅ (depth 1 doesn't hit this path — quiescence's stand-pat check narrows alpha first — and is stable across independent rebuilds, confirmed by `tests/search_engine_parity.rs`) | — |
 | Clock budget calc (shared by both JS and C — `computeGoTimeMs` mirrors `compute_go_time_ms` exactly) | `frontend/shared/clock_budget.js` (46 lines), `engine/uci.c`'s `compute_go_time_ms` | `shatrunz-core::clock_budget` | ✅ | ✅ (`tests/clock_budget_parity.rs`: 17 cases vs JS oracle; C side verified by formula equivalence — `compute_go_time_ms` is `static`, not reachable via UCI to drive directly) | ▢ |
 | `mulberry32` PRNG (deterministic fuzzing) | `tests-js/fuzz_rules_invariants.test.js:8-17`, `tools/js/perft.mjs` | `shatrunz-core::rng::Mulberry32` | ✅ | ✅ (8 draws checked bit-for-bit against the JS oracle by hand before use) | — |
 | P4 fuzz invariants (random play + undo, "exactly one king per side") | `tests-js/fuzz_rules_invariants.test.js`, `tests-js/invariants/game_invariants.js` | `tests/fuzz_invariants.rs` | ✅ | ✅ (3s default per `cargo test`, spot-checked at 20s release-mode with no failures; board-shape/color/piece-type invariants from the JS version are structurally guaranteed by Rust's types and not re-checked) | ▢ |

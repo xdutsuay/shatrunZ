@@ -1,0 +1,182 @@
+{
+  "positions": [
+    {
+      "label": "startpos",
+      "path": [],
+      "bestmoves": {
+        "depth1": "b1c3"
+      }
+    },
+    {
+      "label": "seed2000",
+      "path": [
+        "f2f4",
+        "b9a7"
+      ],
+      "bestmoves": {
+        "depth1": "b1c3"
+      }
+    },
+    {
+      "label": "seed2001",
+      "path": [
+        "h1i3",
+        "h8h7",
+        "b2b4"
+      ],
+      "bestmoves": {
+        "depth1": "b9c7"
+      }
+    },
+    {
+      "label": "seed2002",
+      "path": [
+        "h2h3",
+        "e8e6",
+        "c2c4",
+        "c8c7"
+      ],
+      "bestmoves": {
+        "depth1": "b1c3"
+      }
+    },
+    {
+      "label": "seed2003",
+      "path": [
+        "e2e3",
+        "b9c7",
+        "h2h4",
+        "c7d5",
+        "f1a6"
+      ],
+      "bestmoves": {
+        "depth1": "i8a6"
+      }
+    },
+    {
+      "label": "seed2004",
+      "path": [
+        "g2g4",
+        "c8c7"
+      ],
+      "bestmoves": {
+        "depth1": "b1c3"
+      }
+    },
+    {
+      "label": "seed2005",
+      "path": [
+        "b1c3",
+        "i8i7",
+        "d2d3"
+      ],
+      "bestmoves": {
+        "depth1": "b9c7"
+      }
+    },
+    {
+      "label": "seed2006",
+      "path": [
+        "h2h3",
+        "b8b6",
+        "h1g3",
+        "f8f7"
+      ],
+      "bestmoves": {
+        "depth1": "b1c3"
+      }
+    },
+    {
+      "label": "seed2007",
+      "path": [
+        "c2c3",
+        "h9i7",
+        "h2h4",
+        "i9h9",
+        "d2d3"
+      ],
+      "bestmoves": {
+        "depth1": "i7g6"
+      }
+    },
+    {
+      "label": "seed2008",
+      "path": [
+        "b1c3",
+        "b9a7"
+      ],
+      "bestmoves": {
+        "depth1": "h1g3"
+      }
+    },
+    {
+      "label": "seed2009",
+      "path": [
+        "g2g4",
+        "a8a7",
+        "f1g2"
+      ],
+      "bestmoves": {
+        "depth1": "b9c7"
+      }
+    },
+    {
+      "label": "seed2010",
+      "path": [
+        "g2g3",
+        "h9i7",
+        "h2h4",
+        "c8c7"
+      ],
+      "bestmoves": {
+        "depth1": "b1c3"
+      }
+    },
+    {
+      "label": "seed2011",
+      "path": [
+        "e2e3",
+        "c8c6",
+        "a2a4",
+        "d8d7",
+        "d1h5"
+      ],
+      "bestmoves": {
+        "depth1": "h8h7"
+      }
+    },
+    {
+      "label": "seed2012",
+      "path": [
+        "i2i4",
+        "h8h7"
+      ],
+      "bestmoves": {
+        "depth1": "b1c3"
+      }
+    },
+    {
+      "label": "seed2013",
+      "path": [
+        "b1c3",
+        "b8b7",
+        "a2a3"
+      ],
+      "bestmoves": {
+        "depth1": "b9c7"
+      }
+    },
+    {
+      "label": "seed2014",
+      "path": [
+        "i2i3",
+        "a8a6",
+        "d2d3",
+        "h8h6"
+      ],
+      "bestmoves": {
+        "depth1": "c1h6"
+      }
+    }
+  ]
+}
