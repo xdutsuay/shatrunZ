@@ -88,4 +88,32 @@ impl Board {
     pub fn set(&mut self, r: usize, c: usize, piece: Option<Piece>) {
         self.cells[r][c] = piece;
     }
+
+    /// Human/agent-readable board dump: uppercase = White, lowercase =
+    /// Black, `.` = empty. Mirrors `boardToAscii`
+    /// (tests-js/invariants/game_invariants.js:8-31) — new for the Rust
+    /// port's MCP tool outputs (docs/plans/PLAN_03_rust_port.md's
+    /// ShatrunZ MCP section), not an existing JS/C contract.
+    pub fn to_ascii(&self) -> String {
+        let mut lines = Vec::with_capacity(BOARD_SIZE);
+        for r in 0..BOARD_SIZE {
+            let mut row = String::with_capacity(BOARD_SIZE);
+            for c in 0..BOARD_SIZE {
+                let ch = match self.get(r, c) {
+                    None => '.',
+                    Some(p) => {
+                        let ch = p.kind.as_char();
+                        if p.color == Color::White {
+                            ch.to_ascii_uppercase()
+                        } else {
+                            ch
+                        }
+                    }
+                };
+                row.push(ch);
+            }
+            lines.push(row);
+        }
+        lines.join("\n")
+    }
 }

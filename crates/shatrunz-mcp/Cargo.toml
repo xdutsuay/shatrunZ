@@ -8,4 +8,9 @@ name = "shatrunz-mcp"
 path = "src/main.rs"
 
 [dependencies]
+anyhow = "1.0.103"
+rmcp = { version = "2.2.0", features = ["schemars", "server", "transport-io"] }
+schemars = "1.2.1"
+serde = { version = "1.0.228", features = ["derive"] }
 shatrunz-core = { path = "../shatrunz-core" }
+tokio = { version = "1.52.3", features = ["rt-multi-thread", "macros"] }

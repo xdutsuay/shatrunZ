@@ -12,5 +12,6 @@ pub mod piece;
 pub mod rng;
 pub mod rules;
 pub mod search;
+pub mod uci;
 
 pub const CRATE_NAME: &str = "shatrunz-core";

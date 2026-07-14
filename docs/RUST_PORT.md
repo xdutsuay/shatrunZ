@@ -85,6 +85,38 @@ Legend: ✅ done · ▢ not started · — n/a
   `search::engine`) — either is a reasonable next milestone; M3 unlocks the
   self-play/perft/tournament flywheel earliest per the plan's own ordering
   rationale.
+- 2026-07-14: M3 (ShatrunZ MCP, first slice). `rmcp` v2.2.0 fetches and
+  builds cleanly through the proxy (`server`+`transport-io`+`schemars`
+  features) — no fallback needed, resolving the open question from M0.
+  Added `shatrunz-core::uci` (parse_uci_move/move_to_uci, parity-tested
+  against the JS oracle) and `Board::to_ascii` (new, agent-readable board
+  dump) as shared infrastructure — both will also serve `shatrunz-engine`'s
+  UCI binary in M4. `crates/shatrunz-mcp` now runs a real stdio MCP server
+  (`ServerHandler` + `#[tool_router]`) exposing `new_game`/`get_state`/
+  `legal_moves`/`make_move` (the rule-bug detector), `perft` (the
+  correctness oracle), `evaluate` (HCE breakdown), and `engine_move`/
+  `self_play` (persona search only — the C engine side is blocked on the
+  M4-deferred `search::engine`). Registered in `.mcp.json`
+  (`cargo run --release -p shatrunz-mcp`). Verified end-to-end with
+  `tools/mcp/smoke_test.py`, which speaks raw JSON-RPC 2.0 over stdio to
+  the real binary (initialize → tools/list → every tool) — not just "it
+  compiles". One integration snag worth remembering: MCP's spec requires
+  every tool's output JSON schema to have root type `object`; a tool
+  returning a bare array (`legal_moves` initially returned `Vec<String>`
+  directly) panics at server startup with a schema-validation error, not a
+  runtime error on call — wrap array-shaped results in a struct (done:
+  `LegalMovesResp { moves: Vec<String> }`). **Explicitly out of scope this
+  slice** (see "ShatrunZ MCP" below for the full per-tool breakdown):
+  `analyze` (multipv), `tournament`, `set_persona_weights`/`reset_weights`
+  (persona weights are a hardcoded fn, not yet an overridable store),
+  `import_pgn`/`export_pgn` (no `pgn` module yet), FEN in/out (no `fen.rs`
+  yet — `ascii`+`position_key` stand in), and the optional `data/mcp/`
+  snapshot (games are in-memory only, lost on restart). None of these
+  block the flywheel's core loop (self-play → find a bug → fixture →
+  fix → re-verify), which is what M3 exists to unlock. Next: M4 (UCI
+  engine binary + FEN — also unblocks `search::engine` and gives the MCP
+  layer real FEN support) is the natural next milestone, though the
+  deferred MCP tools above are also reasonable to pick up first.
 
 ## Toolchain setup (fresh container, one command each)
 
@@ -195,21 +227,33 @@ environment (verified 2026-07-13).
 
 | Tool | ported | parity-verified (smoke) |
 |---|---|---|
-| `new_game` | ▢ | ▢ |
-| `get_state` | ▢ | ▢ |
-| `legal_moves` | ▢ | ▢ |
-| `make_move` | ▢ | ▢ |
-| `engine_move` | ▢ | ▢ |
-| `evaluate` | ▢ | ▢ |
-| `analyze` | ▢ | ▢ |
-| `perft` | ▢ | ▢ |
-| `self_play` | ▢ | ▢ |
-| `tournament` | ▢ | ▢ |
-| `set_persona_weights` / `reset_weights` | ▢ | ▢ |
-| `import_pgn` / `export_pgn` | ▢ | ▢ |
+| `new_game` (startpos + UCI move-list replay only; no `fen` input yet) | ✅ | ✅ |
+| `get_state` (`ascii` + `position_key` + `turn` + `status` + `legal_uci`; no `fen`/`board` JSON yet) | ✅ | ✅ |
+| `legal_moves` (with optional `square` filter) | ✅ | ✅ |
+| `make_move` — the rule-bug detector: illegal input returns `{ok:false, error, legal_uci}` instead of mutating state | ✅ | ✅ |
+| `engine_move` — persona search only; C engine search is deferred to M4 (see "Search" above) | ✅ | ✅ |
+| `evaluate` — full HCE breakdown (material/pst/mobility/pawns/capture/total/phase) | ✅ | ✅ |
+| `analyze` (multipv) | ▢ | ▢ |
+| `perft` — the correctness oracle | ✅ | ✅ |
+| `self_play` — persona vs persona only (no C engine side yet); returns result/moves/position_keys | ✅ | ✅ |
+| `tournament` (win-matrix over `self_play`) | ▢ | ▢ |
+| `set_persona_weights` / `reset_weights` | ▢ (deferred — `eval::hce::persona_weights` is a hardcoded fn, not yet a mutable/overridable store) | ▢ |
+| `import_pgn` / `export_pgn` | ▢ (deferred — needs a `pgn` module, not ported yet) | ▢ |
+| FEN in/out for the tools above | ▢ (deferred — no `fen.rs` yet; `ascii` + `position_key` stand in for now) | — |
+| `data/mcp/` snapshot (persist in-memory games across restarts) | ▢ (deferred — in-memory `HashMap<GameId, Game>` only for now) | — |
 
-Note: `rmcp` fetchability from crates.io not yet checked in this environment
-— check at M3 start; fallback is a hand-rolled stdio JSON-RPC loop.
+`rmcp` fetches and builds cleanly through the proxy (v2.2.0, `server` +
+`transport-io` + `schemars` features) — no hand-rolled JSON-RPC fallback
+needed. `shatrunz-core::uci` (parse_uci_move/move_to_uci, parity-tested
+against the JS oracle in `tests/uci_parity.rs`) and `Board::to_ascii`
+(new, not an existing JS/C contract) back the MCP layer and will also
+serve `shatrunz-engine`'s UCI binary in M4. Registered in repo-root
+`.mcp.json` (`cargo run --release -p shatrunz-mcp`, so a fresh checkout
+doesn't need a separate build step). Smoke test:
+`python3 tools/mcp/smoke_test.py` drives the real binary over raw
+JSON-RPC 2.0 stdio (initialize → tools/list → tools/call for every tool
+above) — this is the "smoke via a self-play game + perft through the
+MCP" bar from the plan's M3 description, and it's green.
 
 ## Frontend module disposition (M5)
 

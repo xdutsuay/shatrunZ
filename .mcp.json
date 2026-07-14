@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "shatrunz": {
+      "command": "cargo",
+      "args": ["run", "--quiet", "--release", "-p", "shatrunz-mcp"]
+    }
+  }
+}
