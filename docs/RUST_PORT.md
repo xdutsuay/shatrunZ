@@ -117,6 +117,36 @@ Legend: ✅ done · ▢ not started · — n/a
   engine binary + FEN — also unblocks `search::engine` and gives the MCP
   layer real FEN support) is the natural next milestone, though the
   deferred MCP tools above are also reasonable to pick up first.
+- 2026-07-14: M4 (started) — ported `engine/position.c`'s own move
+  generator to `shatrunz-core::engine_position` (`EnginePosition`/
+  `EngineMove`: castling-rights bitmask, 4-way underpromotion,
+  `is_square_attacked`/`is_in_check`, `make_move`/`unmake_move`), which
+  `search::engine` needs and was blocked on (see M2's deferral note).
+  **Two confirmed, real bugs found and preserved bug-for-bug** (full
+  detail in "Rules / movement" above) — both caught only because perft
+  against the real binary didn't match on the first attempt and each
+  discrepancy was root-caused rather than shrugged off:
+  1. `is_square_attacked`'s pawn check has an inverted sign (verified with
+     a standalone C harness linking `position.c` directly on hand-built
+     positions, bypassing the need to reach them via legal moves) — wrong
+     for essentially every pawn check/castling-safety test in the real
+     engine today.
+  2. Pawn-capture generation validates only the flat 0-80 square index,
+     not the file separately, so an edge-file pawn's capture can wrap to
+     an unrelated square one rank away — found by `perft`'s depth-3/4
+     startpos counts being off by exactly 1 against the real binary, then
+     bisected move-by-move (`a2a4` → per-child perft → `i8i6`) down to one
+     phantom legal move (`a4i6`) before hand-deriving the `make_square`
+     arithmetic that produces it.
+  **P1-analog perft gate green** (`tests/perft_engine.rs`): depth 1-4 from
+  startpos plus 15 seeded random-opening positions, all driven from the
+  real built `engine/shatrunz_engine` binary via its `position`/`legal`
+  UCI commands (no native perft command exists) — `tools/c/perft_dump.py`.
+  Depth-4 (292,331 nodes) matching exactly after the two bug-for-bug fixes
+  is strong evidence no further move-generation divergences remain
+  undetected at this depth. Next within M4: `search::engine` (now
+  unblocked), the UCI protocol handler binary, FEN, and the P5 gate
+  (existing pytest suite + mate-in-1 script against the Rust binary).
 
 ## Toolchain setup (fresh container, one command each)
 
@@ -139,10 +169,13 @@ environment (verified 2026-07-13).
 | Krishna (`z`, weight 1200): step-only to empty squares, never captures, never captured, gives no check, blocks sliding rays | `frontend/rules.js:59-77` (krishna branch + generic capture filter), `rules.js:170,219` (blocks rays) | `shatrunz-core::rules` (in `get_legal_moves`/`is_square_attacked`) | ✅ | ✅ (perft, transitively) | ▢ |
 | Pawn moves: single/double push from start rank, diagonal capture only, no en passant | `frontend/rules.js:29-43` | `shatrunz-core::rules::get_legal_moves` | ✅ | ✅ (perft) | ▢ |
 | Promotion at row 0/8: JS auto-queens | `frontend/rules.js` (destination-row check), `frontend/game.js:61-64` | `shatrunz-core::game::execute_move` | ✅ (JS variant) | ✅ (perft) | ▢ |
-| Promotion: C engine underpromotion variant | `engine/position.c` | `PromotionMode` flag | ▢ (deferred to M4) | ▢ | ▢ |
+| Promotion: C engine underpromotion variant (4-way: Q/R/B/N per promoting move) | `engine/position.c:279-327` | `shatrunz-core::engine_position::generate_moves` | ✅ | ✅ (perft depth 1-4 + 15 seeded positions vs the real binary) | ▢ |
 | Castling: king c4→c6 (rook 8→5) / c4→c2 (rook 0→3), path-empty + not-attacked; JS is position-only | `frontend/rules.js:91-131` | `shatrunz-core::rules::get_legal_moves` | ✅ (JS position-only variant) | ✅ (perft + `tests/game_status.rs` execute/undo round trip) | ▢ |
-| Castling: C engine 4-bit rights-mask variant | `engine/position.c` | `CastlingMode::Rights` | ▢ (deferred to M4) | ▢ | ▢ |
-| `isKingInCheck` returns true if king is absent from the board | `frontend/rules.js:206` | `shatrunz-core::rules::is_king_in_check` | ✅ | ✅ (`tests/game_status.rs`) | ▢ |
+| Castling: C engine 4-bit rights-mask variant (bits: 1=WK,2=WQ,4=BK,8=BQ; cleared on king move, or rook's home square as move-from **or** move-to i.e. capture-on-home-square also revokes rights) | `engine/position.c:60,165-226,408-456` | `shatrunz-core::engine_position::{EnginePosition, make_move, generate_moves}` | ✅ | ✅ (perft vs the real binary) | ▢ |
+| `isKingInCheck`/`rules::is_king_in_check` returns **true** if king is absent from the board (JS) | `frontend/rules.js:206` | `shatrunz-core::rules::is_king_in_check` | ✅ | ✅ (`tests/game_status.rs`) | ▢ |
+| `is_in_check` (C) returns **false** if king is absent — the opposite of the JS quirk above, a real (non-bug) divergence, not unified | `engine/position.c:146-162` | `shatrunz-core::engine_position::is_in_check` | ✅ | — (not independently exercised; king is never absent in the perft-reachable positions tested) | ▢ |
+| **CONFIRMED BUG, preserved bug-for-bug**: `is_square_attacked`'s pawn-attack check (C) has an inverted sign — it checks the squares diagonally in front of the *target* in the attacker's forward direction, not the squares diagonally in front of the *attacking pawn itself*. Verified with a standalone C harness linking the real `position.c` directly (bypassing move-sequence reconstruction): a black pawn at (1,4) is reported attacking (0,3)/(0,5) instead of its real attack squares (2,3)/(2,5). Affects check/checkmate detection, castling-through-check safety, and (once ported) search's `move_gives_check`/`terminal_score` | `engine/position.c:127-140` | `shatrunz-core::engine_position::is_square_attacked` | ✅ (bug reproduced, not fixed) | ✅ (perft vs the real binary — depth-4 startpos count matches exactly, which depends on check detection being wrong in exactly this way) | — (preserving a bug isn't a deletion candidate; a future "fix the bug" item is a deliberate, separate, post-port change) |
+| **CONFIRMED BUG, preserved bug-for-bug**: pawn-capture generation (C) validates the destination with `is_valid_square` (flat 0-80 range only) instead of separately bounds-checking the file — an edge-file pawn's capture can wrap to a real but unrelated square one rank away at the opposite file. Verified against the real binary: after `a2a4 i8i6`, `legal` lists a phantom move `a4i6` (pawn at (5,0) capturing at (3,8) via `make_square(4,-1)` = flat index 35). Every other piece type in position.c bounds-checks rank and file separately and does not have this bug | `engine/position.c:308-327` (contrast with knight/sliding/king bounds checks at 332-334,368,391) | `shatrunz-core::engine_position::generate_moves` (pawn-capture branch) | ✅ (bug reproduced, not fixed) | ✅ (this was the exact 1-node discrepancy that failed the first perft run before the fix — see session log) | — |
 | Move generation order (affects search tie-breaking) — must replicate JS/C iteration order exactly | `frontend/rules.js` (per-piece loops) | `shatrunz-core::rules::get_legal_moves` | ✅ (order copied 1:1) | ▢ (perft only checks counts; order parity deferred to P3 search-tie-break test in M2) | ▢ |
 
 ## Game state

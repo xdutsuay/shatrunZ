@@ -1,0 +1,166 @@
+{
+  "startpos": {
+    "depth1": 22,
+    "depth2": 484,
+    "depth3": 11901,
+    "depth4": 292331
+  },
+  "seeded": [
+    {
+      "seed": 2000,
+      "path": [
+        "f2f4",
+        "b9a7"
+      ],
+      "depth": 2,
+      "nodes": 528
+    },
+    {
+      "seed": 2001,
+      "path": [
+        "h1i3",
+        "h8h7",
+        "b2b4"
+      ],
+      "depth": 2,
+      "nodes": 528
+    },
+    {
+      "seed": 2002,
+      "path": [
+        "h2h3",
+        "e8e6",
+        "c2c4",
+        "c8c7"
+      ],
+      "depth": 2,
+      "nodes": 791
+    },
+    {
+      "seed": 2003,
+      "path": [
+        "e2e3",
+        "b9c7",
+        "h2h4",
+        "c7d5",
+        "f1a6"
+      ],
+      "depth": 2,
+      "nodes": 1035
+    },
+    {
+      "seed": 2004,
+      "path": [
+        "g2g4",
+        "c8c7"
+      ],
+      "depth": 2,
+      "nodes": 575
+    },
+    {
+      "seed": 2005,
+      "path": [
+        "b1c3",
+        "i8i7",
+        "d2d3"
+      ],
+      "depth": 2,
+      "nodes": 650
+    },
+    {
+      "seed": 2006,
+      "path": [
+        "h2h3",
+        "b8b6",
+        "h1g3",
+        "f8f7"
+      ],
+      "depth": 2,
+      "nodes": 625
+    },
+    {
+      "seed": 2007,
+      "path": [
+        "c2c3",
+        "h9i7",
+        "h2h4",
+        "i9h9",
+        "d2d3"
+      ],
+      "depth": 2,
+      "nodes": 649
+    },
+    {
+      "seed": 2008,
+      "path": [
+        "b1c3",
+        "b9a7"
+      ],
+      "depth": 2,
+      "nodes": 528
+    },
+    {
+      "seed": 2009,
+      "path": [
+        "g2g4",
+        "a8a7",
+        "f1g2"
+      ],
+      "depth": 2,
+      "nodes": 669
+    },
+    {
+      "seed": 2010,
+      "path": [
+        "g2g3",
+        "h9i7",
+        "h2h4",
+        "c8c7"
+      ],
+      "depth": 2,
+      "nodes": 576
+    },
+    {
+      "seed": 2011,
+      "path": [
+        "e2e3",
+        "c8c6",
+        "a2a4",
+        "d8d7",
+        "d1h5"
+      ],
+      "depth": 2,
+      "nodes": 1615
+    },
+    {
+      "seed": 2012,
+      "path": [
+        "i2i4",
+        "h8h7"
+      ],
+      "depth": 2,
+      "nodes": 506
+    },
+    {
+      "seed": 2013,
+      "path": [
+        "b1c3",
+        "b8b7",
+        "a2a3"
+      ],
+      "depth": 2,
+      "nodes": 575
+    },
+    {
+      "seed": 2014,
+      "path": [
+        "i2i3",
+        "a8a6",
+        "d2d3",
+        "h8h6"
+      ],
+      "depth": 2,
+      "nodes": 642
+    }
+  ]
+}

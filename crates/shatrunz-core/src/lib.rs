@@ -4,6 +4,7 @@
 
 pub mod board;
 pub mod clock_budget;
+pub mod engine_position;
 pub mod eval;
 pub mod game;
 pub mod moves;
