@@ -1,0 +1,1102 @@
+{
+  "positions": [
+    {
+      "label": "startpos",
+      "uciMoves": [],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 10,
+            "secondScore": 10,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d2d4",
+            "bestScore": 14,
+            "secondScore": 14,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 0,
+            "secondScore": 0,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d2d4",
+            "bestScore": 48,
+            "secondScore": 48,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 35,
+            "secondScore": 35,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 110,
+            "secondScore": 106,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1000",
+      "uciMoves": [
+        "i2i4",
+        "h8h7"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 12,
+            "secondScore": 12,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 16,
+            "secondScore": 14,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 3,
+            "secondScore": 3,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 51,
+            "secondScore": 48,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "i4i5",
+            "bestScore": 6,
+            "secondScore": -1,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 66,
+            "secondScore": 48,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1001",
+      "uciMoves": [
+        "b2b4",
+        "a8a6",
+        "a2a4"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": 8,
+            "secondScore": 8,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 11,
+            "secondScore": 8,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": -3,
+            "secondScore": -3,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 42,
+            "secondScore": 36,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": 31,
+            "secondScore": 31,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 117,
+            "secondScore": 117,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1002",
+      "uciMoves": [
+        "e2e4",
+        "d8d6",
+        "h2h3",
+        "h9g7"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "d1g4",
+            "bestScore": 6,
+            "secondScore": 4,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d1g4",
+            "bestScore": -4,
+            "secondScore": -6,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "d1g4",
+            "bestScore": -9,
+            "secondScore": -12,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d2d4",
+            "bestScore": 6,
+            "secondScore": 6,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "d1g4",
+            "bestScore": 149,
+            "secondScore": 17,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d1g4",
+            "bestScore": 162,
+            "secondScore": 101,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1003",
+      "uciMoves": [
+        "d2d4",
+        "a8a7",
+        "e1d2",
+        "i8i6",
+        "f2f4"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": 2,
+            "secondScore": 2,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 6,
+            "secondScore": 5,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": -15,
+            "secondScore": -15,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 33,
+            "secondScore": 30,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": -23,
+            "secondScore": -23,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 63,
+            "secondScore": 63,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1004",
+      "uciMoves": [
+        "b2b4",
+        "b8b7"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 10,
+            "secondScore": 10,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 11,
+            "secondScore": 10,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 0,
+            "secondScore": 0,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 42,
+            "secondScore": 39,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "c1b2",
+            "bestScore": 35,
+            "secondScore": 6,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 81,
+            "secondScore": 81,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1005",
+      "uciMoves": [
+        "e2e4",
+        "f8f6",
+        "b1a3"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e8e6",
+            "bestScore": -5,
+            "secondScore": -7,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e6",
+            "bestScore": -10,
+            "secondScore": -19,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e8e6",
+            "bestScore": -30,
+            "secondScore": -33,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e6",
+            "bestScore": 0,
+            "secondScore": -18,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": -121,
+            "secondScore": -121,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e6",
+            "bestScore": -111,
+            "secondScore": -140,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1006",
+      "uciMoves": [
+        "d2d4",
+        "a8a7",
+        "e1d2",
+        "a7a6"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e2e4",
+            "bestScore": 15,
+            "secondScore": 13,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d2e1",
+            "bestScore": 13,
+            "secondScore": 13,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e2e4",
+            "bestScore": 9,
+            "secondScore": 6,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d2e1",
+            "bestScore": 45,
+            "secondScore": 45,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "e2e4",
+            "bestScore": 78,
+            "secondScore": 75,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e4",
+            "bestScore": 179,
+            "secondScore": 175,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1007",
+      "uciMoves": [
+        "b1c3",
+        "a8a6",
+        "c3a4",
+        "c8c6",
+        "a2a3"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "d9b7",
+            "bestScore": 16,
+            "secondScore": 10,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d8d6",
+            "bestScore": 9,
+            "secondScore": 6,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "d9b7",
+            "bestScore": 12,
+            "secondScore": 0,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d8d6",
+            "bestScore": 39,
+            "secondScore": 33,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "a6a5",
+            "bestScore": 6,
+            "secondScore": -5,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 77,
+            "secondScore": 77,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1008",
+      "uciMoves": [
+        "i2i3",
+        "f8f6"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 6,
+            "secondScore": 6,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 11,
+            "secondScore": 8,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": -9,
+            "secondScore": -9,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 42,
+            "secondScore": 36,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 24,
+            "secondScore": 24,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 114,
+            "secondScore": 114,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1009",
+      "uciMoves": [
+        "h2h4",
+        "e8e6",
+        "e2e3"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "d9g6",
+            "bestScore": 22,
+            "secondScore": 7,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d9g6",
+            "bestScore": 11,
+            "secondScore": -3,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "d9g6",
+            "bestScore": 24,
+            "secondScore": -6,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d9g6",
+            "bestScore": 42,
+            "secondScore": 15,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "d8d7",
+            "bestScore": -45,
+            "secondScore": -49,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d9g6",
+            "bestScore": 153,
+            "secondScore": 38,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1010",
+      "uciMoves": [
+        "e2e4",
+        "g8g6",
+        "f1b5",
+        "a8a7"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "d1g4",
+            "bestScore": 40,
+            "secondScore": 36,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d1f3",
+            "bestScore": 25,
+            "secondScore": 23,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "d1g4",
+            "bestScore": 60,
+            "secondScore": 51,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d2d4",
+            "bestScore": 66,
+            "secondScore": 66,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "d1g4",
+            "bestScore": 99,
+            "secondScore": 71,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d1f3",
+            "bestScore": 198,
+            "secondScore": 193,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1011",
+      "uciMoves": [
+        "h1i3",
+        "f8f7",
+        "b1c3",
+        "h8h7",
+        "i3h1"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "d8d6",
+            "bestScore": 7,
+            "secondScore": 5,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d8d6",
+            "bestScore": 6,
+            "secondScore": -4,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "d8d6",
+            "bestScore": -6,
+            "secondScore": -9,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d8d6",
+            "bestScore": 33,
+            "secondScore": 14,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "d8d7",
+            "bestScore": 24,
+            "secondScore": 17,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d8d6",
+            "bestScore": 55,
+            "secondScore": 41,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1012",
+      "uciMoves": [
+        "d2d3",
+        "e8e7"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e2e4",
+            "bestScore": -8,
+            "secondScore": -10,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d1d2",
+            "bestScore": -10,
+            "secondScore": -17,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e2e4",
+            "bestScore": -36,
+            "secondScore": -37,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d1d2",
+            "bestScore": 2,
+            "secondScore": -13,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "f2f3",
+            "bestScore": -106,
+            "secondScore": -106,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d1d2",
+            "bestScore": -39,
+            "secondScore": -60,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1013",
+      "uciMoves": [
+        "a2a3",
+        "a8a7",
+        "h2h4"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "d8d6",
+            "bestScore": 19,
+            "secondScore": 17,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d8d6",
+            "bestScore": 23,
+            "secondScore": 14,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "d8d6",
+            "bestScore": 18,
+            "secondScore": 15,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d8d6",
+            "bestScore": 66,
+            "secondScore": 48,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "d8d6",
+            "bestScore": 67,
+            "secondScore": 64,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 121,
+            "secondScore": 121,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1014",
+      "uciMoves": [
+        "b2b4",
+        "g8g6",
+        "c1a3",
+        "i8i6"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "a3b2",
+            "bestScore": 9,
+            "secondScore": 6,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 5,
+            "secondScore": 4,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "a3b2",
+            "bestScore": -3,
+            "secondScore": -9,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 30,
+            "secondScore": 27,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "a3b2",
+            "bestScore": 93,
+            "secondScore": 31,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "a3b2",
+            "bestScore": 99,
+            "secondScore": 88,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1015",
+      "uciMoves": [
+        "c2c4",
+        "i8i7",
+        "f2f3",
+        "g8g7",
+        "d2d3"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": -2,
+            "secondScore": -2,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 2,
+            "secondScore": -1,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": -26,
+            "secondScore": -26,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 24,
+            "secondScore": 18,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": -70,
+            "secondScore": -70,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 34,
+            "secondScore": 27,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1016",
+      "uciMoves": [
+        "h1i3",
+        "i8i6"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 10,
+            "secondScore": 10,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d2d4",
+            "bestScore": 13,
+            "secondScore": 13,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e2e3",
+            "bestScore": 0,
+            "secondScore": 0,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d2d4",
+            "bestScore": 45,
+            "secondScore": 45,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "i3g4",
+            "bestScore": 13,
+            "secondScore": -5,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e2e3",
+            "bestScore": 22,
+            "secondScore": 5,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1017",
+      "uciMoves": [
+        "c2c3",
+        "a8a7",
+        "a2a3"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": 8,
+            "secondScore": 8,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 12,
+            "secondScore": 8,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": -3,
+            "secondScore": -3,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 45,
+            "secondScore": 36,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "e8e6",
+            "bestScore": -41,
+            "secondScore": -49,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 77,
+            "secondScore": 77,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1018",
+      "uciMoves": [
+        "h2h4",
+        "h8h7",
+        "d2d4",
+        "e8e7"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "d1d3",
+            "bestScore": 9,
+            "secondScore": 1,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d1d3",
+            "bestScore": 1,
+            "secondScore": -4,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "d1d3",
+            "bestScore": -3,
+            "secondScore": -18,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d1d3",
+            "bestScore": 21,
+            "secondScore": 12,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "d1d3",
+            "bestScore": -27,
+            "secondScore": -89,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "d1d3",
+            "bestScore": -6,
+            "secondScore": -21,
+            "depthReached": 3
+          }
+        }
+      }
+    },
+    {
+      "label": "seed1019",
+      "uciMoves": [
+        "a2a4",
+        "i8i6",
+        "a1a2",
+        "a8a7",
+        "a2a3"
+      ],
+      "results": {
+        "material": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": -2,
+            "secondScore": -2,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 2,
+            "secondScore": 0,
+            "depthReached": 3
+          }
+        },
+        "positional": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": -24,
+            "secondScore": -24,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": 24,
+            "secondScore": 21,
+            "depthReached": 3
+          }
+        },
+        "aggressive": {
+          "depth2": {
+            "uci": "e8e7",
+            "bestScore": 6,
+            "secondScore": 6,
+            "depthReached": 2
+          },
+          "depth3": {
+            "uci": "e8e7",
+            "bestScore": -3,
+            "secondScore": -6,
+            "depthReached": 3
+          }
+        }
+      }
+    }
+  ]
+}

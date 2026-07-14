@@ -3,11 +3,14 @@
 //! for the parity checklist.
 
 pub mod board;
+pub mod clock_budget;
 pub mod eval;
 pub mod game;
 pub mod moves;
 pub mod phase;
 pub mod piece;
+pub mod rng;
 pub mod rules;
+pub mod search;
 
 pub const CRATE_NAME: &str = "shatrunz-core";

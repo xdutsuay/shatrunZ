@@ -62,6 +62,26 @@ pub fn get_phase(board: &Board) -> Phase {
     get_phase_with_opts(board, PhaseOpts::default())
 }
 
+/// `getPhase` (game_phase.js:24-31) takes the whole `Game`, not just its
+/// board — this is the direct equivalent; `get_phase` above matches
+/// eval_core.js's separate `inferPhase(board)`, which is the same
+/// board-only computation with the same 26/7 defaults.
+pub fn get_phase_for_game(game: &Game) -> Phase {
+    get_phase(&game.board)
+}
+
+/// Mirrors `endgameDepthBonus` (opening_book.js:19-21): +1 search depth
+/// once in the endgame phase. Deterministic (no brain dependency), unlike
+/// `openingBookBonus` in the same file, which needs brain memory and stays
+/// JS-side per docs/RUST_PORT.md's frontend module disposition.
+pub fn endgame_depth_bonus(game: &Game) -> u32 {
+    if get_phase_for_game(game) == Phase::Endgame {
+        1
+    } else {
+        0
+    }
+}
+
 /// Legal-move count for side to move (proxy for branching factor). Mirrors
 /// `estimateBranchingFactor` (game_phase.js:34-36).
 pub fn estimate_branching_factor(game: &Game) -> usize {

@@ -17,6 +17,19 @@ struct CastlingRookMove {
 }
 
 #[derive(Debug, Clone)]
+struct AiHistoryEntry {
+    from: Square,
+    to: Square,
+    captured_piece: Option<Piece>,
+    /// `Some(Pawn)` if this move promoted; JS's `undoRec.movedPiece` is
+    /// never actually read back by `undoMove` (game.js:206-207 reads the
+    /// *current* board piece at `to`, not the stored one) so it isn't
+    /// modeled here at all — this field is the only thing undo needs.
+    promoted_from: Option<PieceKind>,
+    castling_rook: Option<CastlingRookMove>,
+}
+
+#[derive(Debug, Clone)]
 struct HistoryEntry {
     from: Square,
     to: Square,
@@ -43,6 +56,10 @@ pub struct Game {
     pub game_over: bool,
     move_history: Vec<HistoryEntry>,
     position_history: HashMap<String, u32>,
+    /// Mirrors `this._aiStack` (game.js:11): lightweight make/unmake stack
+    /// used by search, independent of `move_history`/`position_history`
+    /// and never toggling `turn` (search passes color explicitly).
+    ai_stack: Vec<AiHistoryEntry>,
 }
 
 impl Default for Game {
@@ -59,6 +76,7 @@ impl Game {
             game_over: false,
             move_history: Vec::new(),
             position_history: HashMap::new(),
+            ai_stack: Vec::new(),
         }
     }
 
@@ -184,6 +202,79 @@ impl Game {
 
         self.turn = last.prev_turn;
         self.game_over = false;
+        true
+    }
+
+    /// Lightweight make used by search: mirrors `makeMove` (game.js:102-147)
+    /// — unlike `execute_move`, doesn't touch `turn`/move_history/
+    /// position_history (search passes color explicitly and never needs
+    /// undo-to-a-named-position), using a separate `ai_stack`.
+    pub fn make_move(&mut self, from: Square, to: MoveTarget) -> bool {
+        let moved = match self.board.get(from.r, from.c) {
+            Some(p) => p,
+            None => return false,
+        };
+        let captured = self.board.get(to.r, to.c);
+
+        let mut entry = AiHistoryEntry {
+            from,
+            to: to.to_square(),
+            captured_piece: captured,
+            promoted_from: None,
+            castling_rook: None,
+        };
+
+        self.board.set(to.r, to.c, Some(moved));
+        self.board.set(from.r, from.c, None);
+
+        if moved.kind == PieceKind::Pawn && (to.r == 0 || to.r == 8) {
+            entry.promoted_from = Some(PieceKind::Pawn);
+            let mut promoted = moved;
+            promoted.kind = PieceKind::Queen;
+            self.board.set(to.r, to.c, Some(promoted));
+        }
+
+        if to.is_castling {
+            let rank = from.r;
+            let is_kingside = to.c > from.c;
+            let rook_from_col = if is_kingside { 8 } else { 0 };
+            let rook_to_col = if is_kingside { 5 } else { 3 };
+            if let Some(rook) = self.board.get(rank, rook_from_col) {
+                self.board.set(rank, rook_to_col, Some(rook));
+                self.board.set(rank, rook_from_col, None);
+                entry.castling_rook = Some(CastlingRookMove {
+                    from: Square { r: rank, c: rook_from_col },
+                    to: Square { r: rank, c: rook_to_col },
+                    piece: rook,
+                });
+            }
+        }
+
+        self.ai_stack.push(entry);
+        true
+    }
+
+    /// Mirrors `undoMove` (game.js:149-171).
+    pub fn undo_move(&mut self) -> bool {
+        let rec = match self.ai_stack.pop() {
+            Some(r) => r,
+            None => return false,
+        };
+
+        if let Some(cr) = &rec.castling_rook {
+            self.board.set(cr.from.r, cr.from.c, Some(cr.piece));
+            self.board.set(cr.to.r, cr.to.c, None);
+        }
+
+        let moved = self.board.get(rec.to.r, rec.to.c);
+        self.board.set(rec.from.r, rec.from.c, moved);
+        self.board.set(rec.to.r, rec.to.c, rec.captured_piece);
+
+        if let (Some(mut m), Some(orig_kind)) = (moved, rec.promoted_from) {
+            m.kind = orig_kind;
+            self.board.set(rec.from.r, rec.from.c, Some(m));
+        }
+
         true
     }
 
