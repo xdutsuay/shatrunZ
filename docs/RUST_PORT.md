@@ -86,8 +86,11 @@ environment (verified 2026-07-13).
 
 | Item | Source | Rust location | ported | parity-verified | old deleted |
 |---|---|---|---|---|---|
-| JS persona eval (material/positional/aggressive PSTs, mobility ×3, pawn structure, capture pressure, tempo, `Math.round`) | `frontend/shared/eval_core.js` (246 lines) | `shatrunz-core::eval::hce` (M2) — f64, identical op order, `js_round = floor(x+0.5)` | ▢ | ▢ | ▢ |
-| C engine eval (material + PST, side-to-move) | `engine/evaluate.c` (116 lines) | `shatrunz-core::eval::engine` (M2) | ▢ | ▢ | ▢ |
+| Phase detection (opening/middlegame/endgame from non-Krishna piece count) | `frontend/shared/game_phase.js` (47 lines) | `shatrunz-core::phase` | ✅ | ✅ (transitively, via `eval_hce_parity.rs` — phase selects HCE's king PST table, though see the PST bug row below for why that barely matters in practice) | ▢ |
+| JS persona eval (material/positional/aggressive PSTs, mobility ×3, pawn structure, capture pressure, tempo, `Math.round`) | `frontend/shared/eval_core.js` (246 lines) | `shatrunz-core::eval::hce` | ✅ | ✅ (`tests/eval_hce_parity.rs`: 21 positions × 3 personas × {white, forSearch}, all exact) | ▢ |
+| **FROZEN BUG** `pstForPiece`'s piece-square term is a no-op for ~all real positions (2D PST tables indexed with a flat formula → `undefined ?? 0`); the `idx<9` corner corrupts JS's `score` to a string/NaN instead of a clean number | `frontend/shared/eval_core.js` (`pstForPiece`, PST_PAWN etc. at lines 12-70) | `shatrunz-core::eval::hce::pst_for_piece` — returns 0 for Pawn/Knight/King/Krishna always; Bishop/Rook/Queen's center term is unaffected and works correctly | ✅ (dominant case reproduced) | ✅ (perft-adjacent positions in `tests/eval_hce_parity.rs` all hit the `idx>=9` no-op path and match) | — (not a deletion candidate; it's the JS behavior itself) |
+| C engine eval (material + PST, side-to-move) — genuinely uses flat `[81]` C arrays, no equivalent bug | `engine/evaluate.c` (116 lines) | `shatrunz-core::eval::engine` | ✅ | ✅ (`tests/eval_engine_parity.rs`: 21 positions driven through the built `engine/shatrunz_engine` UCI binary, exact `cp` match) | ▢ |
+| C/JS PST table divergences found while transcribing (verified via `python3 -c` parsing the raw C array literals, not hand-copied): `PST_KING` row 8 differs (C: `20,30,10,0,0,0,10,30,20`; JS: `20,40,20,0,0,0,20,40,20`); `PST_KRISHNA` center bonus sits on row 4 in C vs row 3 in JS | `engine/evaluate.c:68-75,55-65` vs `frontend/shared/eval_core.js` `PST_KING_MID`/`PST_KRISHNA` | separate tables in `eval::engine` vs `eval::hce`, deliberately not unified | ✅ | ✅ (both parity tests pass independently with their own tables) | — |
 
 ## Search
 

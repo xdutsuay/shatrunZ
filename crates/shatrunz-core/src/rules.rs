@@ -7,16 +7,20 @@ use crate::board::{in_bounds, Board, BOARD_SIZE};
 use crate::moves::{CastlingSide, Move, MoveTarget, Square};
 use crate::piece::{Color, PieceKind};
 
-/// Mirrors `Rules.getAllLegalMoves` (rules.js:6-19).
-pub fn get_all_legal_moves(board: &mut Board, color: Color) -> Vec<Move> {
+/// Mirrors `Rules.getAllLegalMoves` (rules.js:6-19). Takes `&Board`
+/// (read-only from the caller's point of view) — internally uses one
+/// mutable scratch copy for the make/unmake king-safety check, same as
+/// JS mutating `this.board` in place and always reverting.
+pub fn get_all_legal_moves(board: &Board, color: Color) -> Vec<Move> {
+    let mut scratch = board.clone();
     let mut moves = Vec::new();
     for r in 0..BOARD_SIZE {
         for c in 0..BOARD_SIZE {
-            match board.get(r, c) {
+            match scratch.get(r, c) {
                 Some(p) if p.color == color => {}
                 _ => continue,
             }
-            for to in get_legal_moves(board, r, c, true) {
+            for to in get_legal_moves_mut(&mut scratch, r, c, true) {
                 moves.push(Move {
                     from: Square { r, c },
                     to,
@@ -27,8 +31,19 @@ pub fn get_all_legal_moves(board: &mut Board, color: Color) -> Vec<Move> {
     moves
 }
 
-/// Mirrors `Rules.getLegalMoves` (rules.js:21-134).
+/// Mirrors `Rules.getLegalMoves` (rules.js:21-134). Takes `&Board`; see
+/// `get_all_legal_moves` for why this is a cloning wrapper.
 pub fn get_legal_moves(
+    board: &Board,
+    r: usize,
+    c: usize,
+    check_king_safety: bool,
+) -> Vec<MoveTarget> {
+    let mut scratch = board.clone();
+    get_legal_moves_mut(&mut scratch, r, c, check_king_safety)
+}
+
+fn get_legal_moves_mut(
     board: &mut Board,
     r: usize,
     c: usize,

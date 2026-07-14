@@ -3,8 +3,10 @@
 //! for the parity checklist.
 
 pub mod board;
+pub mod eval;
 pub mod game;
 pub mod moves;
+pub mod phase;
 pub mod piece;
 pub mod rules;
 

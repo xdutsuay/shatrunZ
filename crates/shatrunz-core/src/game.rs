@@ -86,16 +86,16 @@ impl Game {
     /// All legal moves for `color`, board-scan order preserved. Mirrors
     /// `Rules.getAllLegalMoves` called with `this.board` (rules.js:6-19).
     pub fn legal_moves(&self, color: Color) -> Vec<Move> {
-        let mut b = self.board.clone();
-        rules::get_all_legal_moves(&mut b, color)
+        rules::get_all_legal_moves(&self.board, color)
     }
 
     fn has_legal_moves(&self, color: Color) -> bool {
-        let mut b = self.board.clone();
         for r in 0..BOARD_SIZE {
             for c in 0..BOARD_SIZE {
-                if let Some(p) = b.get(r, c) {
-                    if p.color == color && !rules::get_legal_moves(&mut b, r, c, true).is_empty() {
+                if let Some(p) = self.board.get(r, c) {
+                    if p.color == color
+                        && !rules::get_legal_moves(&self.board, r, c, true).is_empty()
+                    {
                         return true;
                     }
                 }
