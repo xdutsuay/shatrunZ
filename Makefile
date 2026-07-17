@@ -40,7 +40,8 @@ engine-rust:
 PYTEST := $(shell if [ -x .venv/bin/pytest ]; then echo .venv/bin/pytest; else echo pytest; fi)
 
 # P5 gate: pytest against the installed default engine (Rust after engine-rust).
-p5-test: engine-rust
+# Needs pkg-node so tools/js/* can construct Wasm Game.
+p5-test: engine-rust wasm
 	$(PYTEST) -q \
 		tests/test_engine_uci.py \
 		tests/test_engine.py \

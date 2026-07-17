@@ -6,6 +6,7 @@
 import { Game } from '../../frontend/game.js';
 import { Rules } from '../../frontend/rules.js';
 import { parseUCIMove } from '../../frontend/shared/uci.js';
+import { initWasm } from '../../frontend/shared/wasm_boot.js';
 
 const FILES = 'abcdefghi';
 
@@ -27,6 +28,7 @@ function legalUciList(game) {
     return out.sort();
 }
 
+await initWasm();
 const uciArgs = process.argv.slice(2);
 const game = new Game();
 for (const uci of uciArgs) {

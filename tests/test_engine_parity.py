@@ -47,6 +47,8 @@ def js_can_replay(moves: list[str]) -> bool:
     script = (
         "import { Game } from './frontend/game.js';"
         "import { parseUCIMove } from './frontend/shared/uci.js';"
+        "import { initWasm } from './frontend/shared/wasm_boot.js';"
+        "await initWasm();"
         "const g = new Game();"
         "for (const u of process.argv.slice(2)) {"
         "  const p = parseUCIMove(u);"
