@@ -5,8 +5,10 @@ import { levelToJsDepth } from './shared/persona.js';
 import { getSettings } from './shared/settings_store.js';
 import { openingBookBonus, endgameDepthBonus } from './shared/opening_book.js';
 import { fetchPolicyBonuses, isPolicyNetEnabled } from './shared/policy_net.js';
-import { moveToUCI } from './shared/uci.js';
+import { moveToUCI, parseUCIMove } from './shared/uci.js';
 import { evaluateForSearch } from './shared/eval_core.js';
+import { isWasmReady, getWasm } from './shared/wasm_boot.js';
+import { searchViaWorker } from './workers/ai_worker_client.js';
 
 // --- AI Strategy Base Class ---
 class AIStrategy {
@@ -211,6 +213,106 @@ export class AIPlayer {
     }
 
     async getBestMove(game, color, fastMode = false, opts = {}) {
+        const budgetMs = opts.budgetMs || 0;
+        const onSearchUpdate = opts.onSearchUpdate;
+        const persona = this.getStrategyKey() === 'c_native' || this.getStrategyKey() === 'c_engine'
+            ? 'material'
+            : (this.strategy?.personaKey || this.getStrategyKey() || 'material');
+
+        if (game?._wasm && isWasmReady()) {
+            return this._getBestMoveWasm(game, color, persona, budgetMs, onSearchUpdate, opts);
+        }
+        return this._getBestMoveJs(game, color, fastMode, opts);
+    }
+
+    async _getBestMoveWasm(game, color, persona, budgetMs, onSearchUpdate, opts) {
+        const gameHash = game.getHash();
+        let maxDepth = this.depth + endgameDepthBonus(game);
+        if (budgetMs > 0) maxDepth = Math.min(maxDepth, 8);
+
+        const moves = Rules.getAllLegalMoves(game.board, color);
+        if (moves.length === 0) return null;
+
+        const rootBonuses = {};
+        for (const move of moves) {
+            const pieceBefore = game.board[move.from.r][move.from.c];
+            const uci = pieceBefore ? moveToUCI(move.from, move.to, pieceBefore) : null;
+            if (!uci) continue;
+            const moveStr = `${move.from.r}${move.from.c}-${move.to.r}${move.to.c}`;
+            let bonus = this.brain.getBonus(gameHash, moveStr) * 0.5;
+            bonus += openingBookBonus(this.brain, gameHash, moveStr, game);
+            bonus += this.brain.getPositionValue(gameHash) * 0.2;
+            rootBonuses[uci] = bonus;
+        }
+
+        if (isPolicyNetEnabled() && budgetMs <= 0) {
+            const policyBonuses = await fetchPolicyBonuses(
+                game, color, moves, opts.uciPrefix || []
+            );
+            for (const [uci, v] of Object.entries(policyBonuses || {})) {
+                rootBonuses[uci] = (rootBonuses[uci] || 0) + v * 0.3;
+            }
+        }
+
+        const searchOpts = {
+            color,
+            persona,
+            depth: maxDepth,
+            budgetMs: budgetMs > 0 ? budgetMs : undefined,
+            rootBonuses,
+        };
+
+        let result;
+        try {
+            result = await searchViaWorker(game, searchOpts, onSearchUpdate);
+        } catch {
+            const { searchBestMove } = getWasm();
+            result = searchBestMove(game._wasm, searchOpts);
+        }
+
+        if (!result?.uci) {
+            this.lastDecision = {
+                bestScore: -Infinity,
+                secondScore: -Infinity,
+                move: null,
+                depthReached: 0,
+            };
+            return null;
+        }
+
+        const parsed = parseUCIMove(result.uci);
+        if (!parsed) return null;
+
+        const legal = moves.find(
+            (m) => m.from.r === parsed.from.r && m.from.c === parsed.from.c
+                && m.to.r === parsed.to.r && m.to.c === parsed.to.c
+        );
+        const bestMove = legal || { from: parsed.from, to: parsed.to };
+
+        if (onSearchUpdate) {
+            onSearchUpdate({
+                type: 'info',
+                depth: result.depthReached ?? maxDepth,
+                cp: Math.round(result.bestScore ?? 0),
+                pv: [result.uci],
+                final: true,
+            });
+        }
+
+        this.lastDecision = {
+            bestScore: result.bestScore,
+            secondScore: result.secondScore ?? result.bestScore,
+            move: bestMove,
+            depthReached: result.depthReached ?? maxDepth,
+        };
+
+        const moveStr = `${bestMove.from.r}${bestMove.from.c}-${bestMove.to.r}${bestMove.to.c}`;
+        this.brain.recordMove(gameHash, moveStr);
+        game._syncFromWasm?.();
+        return bestMove;
+    }
+
+    async _getBestMoveJs(game, color, fastMode = false, opts = {}) {
         const addRandomness = getSettings().randomness;
         const budgetMs = opts.budgetMs || 0;
         const deadline = budgetMs > 0 ? performance.now() + budgetMs : 0;
@@ -222,9 +324,6 @@ export class AIPlayer {
         const gameHash = game.getHash();
         const positionValue = this.brain.getPositionValue(gameHash);
         let maxDepth = this.depth + endgameDepthBonus(game);
-        // Under a clock budget, cap the top of iterative deepening: the deadline is
-        // primary, but a sane ceiling stops us from sinking the whole budget into a
-        // deep iteration that gets cut and discarded (ID keeps the last full depth).
         if (budgetMs > 0) maxDepth = Math.min(maxDepth, 8);
 
         let policyBonuses = {};

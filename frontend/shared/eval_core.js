@@ -1,6 +1,8 @@
 /**
  * Shared hand-crafted evaluation (HCE) for ShatrunZ 9×9.
- * All helpers accumulate White − Black; use evaluateForSearch() for negamax (side-to-move).
+ * Board-array API stays JS (parity with `eval::hce`). When a wasm-backed
+ * `Game` is available, prefer `evaluatePositionWhite(game._wasm, persona)`
+ * via wasm_boot for display paths that hold a Game — see Game.getScore().
  * @see https://www.chessprogramming.org/Evaluation
  */
 

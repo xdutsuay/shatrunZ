@@ -1,3 +1,9 @@
+/**
+ * Rules — board-array move generation (JS).
+ * Game state / checkStatus / executeMove live in wasm (`Game` facade).
+ * Legal moves stay here so callers that only have `board[][]` (tests, eval)
+ * keep working; generation order matches the Rust `rules` port (P1).
+ */
 import { BOARD_SIZE, COLORS, PIECES } from './constants.js';
 
 export class Rules {

@@ -205,6 +205,14 @@ Legend: ✅ done · ▢ not started · — n/a
   `frontend/pkg` (web) and `frontend/pkg-node` (nodejs, gitignored).
   Node smoke: startpos `legal_count=22`, `executeUci('e2e4')` flips turn.
   Still TODO: thin JS adapters, AI worker, P6.
+- 2026-07-17: M5 finish (ASAP merge bar). Thin adapters:
+  `frontend/game.js` → `WasmGame` + board mirror; `main.js` awaits
+  `initWasm()`; `ai.js` uses `searchBestMove` (+ worker with main-thread
+  fallback); `clock_budget.js` prefers wasm; Rules/eval/uci board APIs
+  stay JS (parity with core). `make engine-rust` installs
+  `engine/shatrunz_engine`. P6: `npm test` 64/64 with
+  `tests-js/wasm_preload.mjs` + `wasm_game_smoke.test.js`. M6/M7 remain
+  follow-up PRs (Flask stays).
 
 ## Toolchain setup (fresh container, one command each)
 
@@ -373,7 +381,7 @@ MCP" bar from the plan's M3 description, and it's green.
 | deterministic JS/C bestmove+score | P3 search parity test | ▢ | ▢ |
 | `fuzz_rules_invariants`, `invariants/game_invariants.js` | Rust port with mulberry32 (P4) | ▢ | ▢ |
 | `tests/` pytest suite, `tests/engine_mate_in_1.sh` | run unmodified against `shatrunz_engine` binary (P5) | ✅ (`SHATRUNZ_ENGINE` + `make p5-test`; C path still default) | ✅ (17 pytest vs Rust binary) |
-| `tests-js` pure-module suites | run unmodified through adapters (P6) | ▢ | ▢ |
+| `tests-js` pure-module suites | run unmodified through adapters (P6) | ✅ (`npm test` + wasm preload) | ✅ (64 passed incl. wasm_game_smoke) |
 | `tests/test_backend_contracts.py`, `test_api_health.py`, `test_stats_summary.py` | HTTP tests against spawned axum server (P7) | ▢ | ▢ |
 
 ## Deferred (explicitly out of scope for the port itself)
