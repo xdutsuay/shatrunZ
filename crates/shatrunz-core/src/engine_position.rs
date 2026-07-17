@@ -497,3 +497,88 @@ pub fn generate_legal_moves(pos: &mut EnginePosition) -> Vec<EngineMove> {
     }
     legal
 }
+
+const UCI_FILES: &[u8] = b"abcdefghi";
+
+/// Mirrors `square_to_str` / `square_to_uci` (engine/uci.c:76-81) —
+/// file a–i, rank = 9−row. **FROZEN** external contract.
+pub fn square_to_uci(sq: ESquare) -> String {
+    format!("{}{}", UCI_FILES[sq.c] as char, 9 - sq.r)
+}
+
+/// Mirrors `str_to_square` (engine/uci.c:84-98). Returns `None` when the
+/// file is outside a–i (C returns -1).
+pub fn uci_to_square(token: &str) -> Option<ESquare> {
+    let bytes = token.as_bytes();
+    if bytes.len() < 2 {
+        return None;
+    }
+    let c = UCI_FILES.iter().position(|&f| f == bytes[0])?;
+    let rank_digit = (bytes[1] as char).to_digit(10)?;
+    let r = 9i32 - rank_digit as i32;
+    if !(0..9).contains(&r) {
+        return None;
+    }
+    Some(ESquare {
+        r: r as usize,
+        c,
+    })
+}
+
+/// Encode an `EngineMove` as a UCI token, including underpromotion suffix
+/// (`q`/`r`/`b`/`n`) when `is_promotion` — mirrors the `legal`/`bestmove`
+/// formatting in engine/uci.c:178-242.
+pub fn engine_move_to_uci(mv: &EngineMove) -> String {
+    let mut s = format!("{}{}", square_to_uci(mv.from), square_to_uci(mv.to));
+    if mv.is_promotion {
+        let promo = match mv.promotion_type {
+            Some(PieceKind::Rook) => 'r',
+            Some(PieceKind::Bishop) => 'b',
+            Some(PieceKind::Knight) => 'n',
+            // C defaults unknown / QUEEN to 'q'
+            _ => 'q',
+        };
+        s.push(promo);
+    }
+    s
+}
+
+/// Apply a UCI move token against the current legal move list, matching
+/// C's `position startpos moves …` loop (engine/uci.c:139-158): from/to
+/// must match, and for promotions the suffix char must equal the
+/// generated promotion type (defaulting absent suffix to queen fails the
+/// underpromotion candidates).
+pub fn apply_uci_move(pos: &mut EnginePosition, token: &str) -> bool {
+    let bytes = token.as_bytes();
+    if bytes.len() < 4 {
+        return false;
+    }
+    let Some(from) = uci_to_square(&token[..2]) else {
+        return false;
+    };
+    let Some(to) = uci_to_square(&token[2..4]) else {
+        return false;
+    };
+    let promo_char = bytes.get(4).copied().unwrap_or(0) as char;
+
+    let mut legal = generate_legal_moves(pos);
+    for mv in &mut legal {
+        if mv.from != from || mv.to != to {
+            continue;
+        }
+        if mv.is_promotion {
+            let expected = match mv.promotion_type {
+                Some(PieceKind::Rook) => 'r',
+                Some(PieceKind::Bishop) => 'b',
+                Some(PieceKind::Knight) => 'n',
+                _ => 'q',
+            };
+            if promo_char != expected {
+                continue;
+            }
+        }
+        make_move(pos, mv);
+        return true;
+    }
+    false
+}

@@ -170,6 +170,41 @@ Legend: ✅ done · ▢ not started · — n/a
   `search::engine`'s module doc. Next within M4: the UCI protocol handler
   binary, FEN, and the P5 gate (existing pytest suite + mate-in-1 script
   against the Rust binary).
+- 2026-07-16: M4 (UCI loop). Implemented `crates/shatrunz-engine` as a
+  faithful stdio port of `engine/uci.c`: `uci`/`isready`/`ucinewgame`/
+  `position startpos [moves]`/`go` (depth/randomness/movetime/clocks via
+  `clock_budget::compute_go_time_ms`)/`legal`/`eval`/`d`/`quit`/
+  `bestmove 0000`. Added engine-side UCI helpers on
+  `engine_position` (`square_to_uci`/`uci_to_square`/`engine_move_to_uci`/
+  `apply_uci_move`). Smoke-checked against the real C binary: startpos
+  `legalmoves` string matches byte-for-byte; `go depth 1` / `go movetime`
+  / `eval` / `d` all respond. `position fen` is stubbed with an info
+  string (needs `fen.rs`). Added focused regressions:
+  `crates/shatrunz-core/tests/engine_uci.rs` (helper round-trips /
+  `apply_uci_move`) and `crates/shatrunz-engine/tests/uci_smoke.rs`
+  (binary smoke). **Not yet P5**: do not overwrite
+  `engine/shatrunz_engine` — use `make engine-rust` →
+  `target/release/shatrunz_engine`. Next: `fen.rs` + wire `position fen`,
+  then P5 (point pytest / mate-in-1 at the Rust binary).
+- 2026-07-16: M4 (fen + P5 gate). Added `shatrunz-core::fen`
+  (`engine_position_from_fen`/`engine_position_to_fen`/`parse_position_fen_line`,
+  Krishna `z`/`Z`, standard 6-field FEN). Wired `position fen [moves …]` in
+  `shatrunz-engine`. Tests: `tests/fen_engine.rs`, extended `uci_smoke.rs`,
+  `test_engine_uci.py::test_engine_position_fen`. P5 harness: `tests/engine_paths.py`
+  reads `SHATRUNZ_ENGINE` (default C oracle); `make p5-test` runs the engine
+  pytest suite against `target/release/shatrunz_engine` without overwriting
+  `engine/shatrunz_engine`. **P5 green** (2026-07-16): 17 pytest cases pass
+  against the Rust binary (`SHATRUNZ_ENGINE=target/release/shatrunz_engine`).
+  Next: M5 (WASM crate + frontend adapters + P6).
+- 2026-07-16: M5 (started). Implemented `crates/shatrunz-wasm` bindings:
+  `WasmGame` (`new`/`fromUciMoves`/`board`/`turn`/`legalMovesFor`/
+  `allLegalMoves`/`executeMove`/`executeUci`/`undoLastMove`/`checkStatus`/
+  `positionKey`/`getScore`/`isKingInCheck`/`phase`/`ascii`) plus free fns
+  `parseUciMove`/`moveToUci`/`evaluatePositionWhite`/`evalBreakdown`/
+  `clockBudgetMs`/`searchBestMove`.   Compiles for `wasm32-unknown-unknown`; `wasm-pack` builds
+  `frontend/pkg` (web) and `frontend/pkg-node` (nodejs, gitignored).
+  Node smoke: startpos `legal_count=22`, `executeUci('e2e4')` flips turn.
+  Still TODO: thin JS adapters, AI worker, P6.
 
 ## Toolchain setup (fresh container, one command each)
 
@@ -239,14 +274,14 @@ environment (verified 2026-07-13).
 
 | Command | Source | ported | parity-verified | old deleted |
 |---|---|---|---|---|
-| `uci` / `isready` / `ucinewgame` | `engine/uci.c` (310 lines) | ▢ | ▢ | ▢ |
-| `position startpos [moves]` | `engine/uci.c` | ▢ | ▢ | ▢ |
-| `position fen` (new — wrapper already sends it, C engine doesn't handle it yet) | — | ▢ | ▢ | ▢ |
-| `go [depth\|randomness\|movetime\|clocks]` | `engine/uci.c` | ▢ | ▢ | ▢ |
-| `d` (debug print), custom `legal`, custom `eval` | `engine/uci.c` | ▢ | ▢ | ▢ |
-| `bestmove 0000` (null-move sentinel) | `engine/uci.c` | ▢ | ▢ | ▢ |
-| `quit` | `engine/uci.c` | ▢ | ▢ | ▢ |
-| **FROZEN** square codec: file a–i, rank = 9−row | `engine/uci.c` | ▢ | ▢ | ▢ |
+| `uci` / `isready` / `ucinewgame` | `engine/uci.c` (310 lines) | ✅ (`crates/shatrunz-engine`) | ✅ (P5 via `make p5-test`) | ▢ |
+| `position startpos [moves]` | `engine/uci.c` | ✅ | ✅ (P5) | ▢ |
+| `position fen` (new — wrapper already sends it, C engine doesn't handle it yet) | — | ✅ (`shatrunz-core::fen` + UCI handler) | ✅ (smoke + `test_engine_position_fen`; P5 suite) | ▢ |
+| `go [depth\|randomness\|movetime\|clocks]` | `engine/uci.c` | ✅ | ✅ (P5; timed bestmove may diverge vs C — intentional INF bounds) | ▢ |
+| `d` (debug print), custom `legal`, custom `eval` | `engine/uci.c` | ✅ | ✅ (P5 castling + eval) | ▢ |
+| `bestmove 0000` (null-move sentinel) | `engine/uci.c` | ✅ | ✅ (P5) | ▢ |
+| `quit` | `engine/uci.c` | ✅ | ✅ (P5) | ▢ |
+| **FROZEN** square codec: file a–i, rank = 9−row | `engine/uci.c` | ✅ (`engine_position::{square_to_uci,uci_to_square}`) | ✅ | ▢ |
 
 ## Server routes (`shatrunz-server`, replaces `backend/server.py`)
 
@@ -337,7 +372,7 @@ MCP" bar from the plan's M3 description, and it's green.
 | JS eval dumps vs C `eval` | P2 integer-equality test | ▢ | ▢ |
 | deterministic JS/C bestmove+score | P3 search parity test | ▢ | ▢ |
 | `fuzz_rules_invariants`, `invariants/game_invariants.js` | Rust port with mulberry32 (P4) | ▢ | ▢ |
-| `tests/` pytest suite, `tests/engine_mate_in_1.sh` | run unmodified against `shatrunz_engine` binary (P5) | ▢ | ▢ |
+| `tests/` pytest suite, `tests/engine_mate_in_1.sh` | run unmodified against `shatrunz_engine` binary (P5) | ✅ (`SHATRUNZ_ENGINE` + `make p5-test`; C path still default) | ✅ (17 pytest vs Rust binary) |
 | `tests-js` pure-module suites | run unmodified through adapters (P6) | ▢ | ▢ |
 | `tests/test_backend_contracts.py`, `test_api_health.py`, `test_stats_summary.py` | HTTP tests against spawned axum server (P7) | ▢ | ▢ |
 

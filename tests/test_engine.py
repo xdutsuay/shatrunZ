@@ -1,15 +1,15 @@
 import unittest
 import sys
-import os
 from pathlib import Path
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from engine.engine_wrapper import ShatrunZEngine
+from tests.engine_paths import engine_binary
 
 class TestEngine(unittest.TestCase):
     def setUp(self):
-        self.engine_path = str(Path(__file__).parent.parent / 'engine' / 'shatrunz_engine')
+        self.engine_path = str(engine_binary())
         self.engine = ShatrunZEngine(self.engine_path)
 
     def tearDown(self):

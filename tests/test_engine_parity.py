@@ -14,7 +14,9 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-ENGINE_BIN = ROOT / "engine" / "shatrunz_engine"
+from tests.engine_paths import engine_binary
+
+ENGINE_BIN = engine_binary()
 LEGAL_MJS = ROOT / "tools" / "js" / "legal_moves.mjs"
 
 

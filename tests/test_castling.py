@@ -4,6 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from engine.engine_wrapper import ShatrunZEngine
+from tests.engine_paths import engine_binary
 
 
 def _read_until(engine: ShatrunZEngine, pattern: str, limit: int = 400):
@@ -49,7 +50,7 @@ def _piece_at_d_output(board_lines: list[str], rank: int, file_char: str) -> str
 
 
 def test_white_kingside_castling_moves_king_and_rook():
-    engine_path = str(Path(__file__).parent.parent / "engine" / "shatrunz_engine")
+    engine_path = str(engine_binary())
     eng = ShatrunZEngine(engine_path)
     try:
         eng.new_game()

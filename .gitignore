@@ -12,6 +12,7 @@ data/training_runs/
 dist/
 engine/*.o
 engine/shatrunz_engine
+engine/shatrunz_engine_c
 
 # Rust
 /target/

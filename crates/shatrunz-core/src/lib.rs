@@ -6,6 +6,7 @@ pub mod board;
 pub mod clock_budget;
 pub mod engine_position;
 pub mod eval;
+pub mod fen;
 pub mod game;
 pub mod moves;
 pub mod phase;
