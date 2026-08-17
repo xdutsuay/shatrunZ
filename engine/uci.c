@@ -83,6 +83,11 @@ void square_to_str(Square sq, char *str) {
 // Convert algebraic notation to square (e.g., "e2" -> square)
 Square str_to_square(const char *str) {
   static const char files[] = "abcdefghi";
+  // Guard against short/empty tokens: reading str[1] or str[0] past the NUL
+  // was an OOB read that could drive an out-of-range square index below.
+  if (str == NULL || strlen(str) < 2) {
+    return -1;
+  }
   int c = -1;
   for (int i = 0; i < 9; i++) {
     if (files[i] == str[0]) {
@@ -90,7 +95,7 @@ Square str_to_square(const char *str) {
       break;
     }
   }
-  if (c == -1)
+  if (c == -1 || str[1] < '1' || str[1] > '9')
     return -1;
 
   int r = 9 - (str[1] - '0');
@@ -126,10 +131,17 @@ void uci_loop() {
         moves_str += 6; // Skip "moves "
         char *token = strtok(moves_str, " ");
         while (token) {
-          // Parse single move
+          // Parse single move. A valid token is at least 4 chars (from+to);
+          // reject anything shorter before reading token+2 / token[4] so a
+          // truncated token cannot read OOB.
+          size_t tok_len = strlen(token);
+          if (tok_len < 4) {
+            token = strtok(NULL, " ");
+            continue;
+          }
           Square from = str_to_square(token);   // e.g., "e2" -> square
           Square to = str_to_square(token + 2); // e.g., "e4" -> square
-          char promo_char = token[4];           // Optional promotion char
+          char promo_char = (tok_len >= 5) ? token[4] : '\0'; // Optional promotion char
 
           // Find matching legal move to get correct formatting/promotion type
           Move legal_moves[MAX_MOVES];
@@ -203,6 +215,12 @@ void uci_loop() {
       fflush(stdout);
     } else if (strncmp(line, "go", 2) == 0) {
       int depth = parse_go_int(line, "depth", 5);
+      // Clamp so a hostile/accidental `go depth N` (huge N) cannot overflow
+      // the recursion stack; MAX_PLY is the recursion bound.
+      if (depth < 1)
+        depth = 1;
+      if (depth > MAX_PLY)
+        depth = MAX_PLY;
       int randomness = parse_go_int(line, "randomness", 0);
       int time_ms = compute_go_time_ms(line, pos.side_to_move);
 

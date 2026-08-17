@@ -17,6 +17,10 @@ void unmake_move(Position *pos, const Move *move);
 bool is_in_check(const Position *pos, Color color);
 
 static const int MATE_SCORE = 100000;
+// Finite search bounds. Passing INT_MIN/INT_MAX as alpha/beta and then
+// negating them (`-alpha` / `-beta`) in alphabeta is signed-overflow UB and
+// produced corrupted scores at depth >= 2. Use a finite sentinel instead.
+static const int SEARCH_INF = 10000000;
 
 static void square_to_uci(Square sq, char *from, char *to_out) {
   static const char files[] = "abcdefghi";
@@ -77,6 +81,10 @@ static int terminal_score(const Position *pos, int ply_offset) {
 
 // Quiescence search at depth 0 (captures and checks only)
 static int quiescence(Position *pos, int alpha, int beta, int ply) {
+  // Hard ply cap so pathological check/capture chains cannot overflow the stack.
+  if (ply >= MAX_PLY) {
+    return evaluate(pos);
+  }
   int stand_pat = evaluate(pos);
   if (stand_pat >= beta) {
     return beta;
@@ -115,6 +123,11 @@ static int quiescence(Position *pos, int alpha, int beta, int ply) {
 
 // Alpha-beta search
 int alphabeta(Position *pos, int depth, int alpha, int beta, int ply) {
+  // Hard ply cap: MAX_PLY is no longer just a declared constant, it bounds
+  // recursion so `go depth N` with a huge N cannot overflow the stack.
+  if (ply >= MAX_PLY) {
+    return quiescence(pos, alpha, beta, ply);
+  }
   if (depth <= 0) {
     return quiescence(pos, alpha, beta, ply);
   }
@@ -160,7 +173,7 @@ Move search(Position *pos, int depth, int randomness) {
 
   for (int i = 0; i < move_count; i++) {
     make_move(pos, &moves[i]);
-    int score = -alphabeta(pos, depth - 1, INT_MIN, INT_MAX, 1);
+    int score = -alphabeta(pos, depth - 1, -SEARCH_INF, SEARCH_INF, 1);
     unmake_move(pos, &moves[i]);
 
     if (randomness > 0) {

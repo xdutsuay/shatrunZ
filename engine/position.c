@@ -267,6 +267,12 @@ int generate_moves(const Position *pos, Move *moves) {
   Color them = (us == WHITE) ? BLACK : WHITE;
 
   for (Square from = 0; from < BOARD_SIZE * BOARD_SIZE; from++) {
+    // Guard against overflowing the caller's MAX_MOVES buffer: a single
+    // promoting pawn can emit up to 13 moves (4+1 forward, 8 captures), so
+    // bail out before a material-rich position exceeds the cap.
+    if (count >= MAX_MOVES - 16) {
+      break;
+    }
     Piece piece = pos->board[from];
     if (piece == NO_PIECE || piece_color(piece) != us)
       continue;
