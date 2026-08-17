@@ -19,7 +19,7 @@
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::wrapper::Parameters;
@@ -39,6 +39,12 @@ use shatrunz_core::phase::get_phase;
 use shatrunz_core::piece::Color;
 use shatrunz_core::search::persona::{get_best_move, SearchConfig};
 use shatrunz_core::uci::{legal_uci_moves, move_to_uci, parse_uci_move};
+
+/// Max recursion depth for perft / engine_move / self_play. Bounds the
+/// unbounded-recursion stack-overflow vector from a hostile/accidental
+/// `depth` (e.g. `perft depth 100000` or `engine_move depth 0`).
+const MAX_SEARCH_DEPTH: u32 = 16;
+const MAX_PERFT_DEPTH: u32 = 8;
 
 fn persona_from_str(s: &str) -> Persona {
     match s {
@@ -147,7 +153,7 @@ struct PerftResp {
 }
 
 fn perft(game: &mut Game, depth: u32) -> u64 {
-    if depth == 0 {
+    if depth == 0 || depth > MAX_PERFT_DEPTH {
         return 1;
     }
     let moves = game.legal_moves(game.turn);
@@ -248,6 +254,12 @@ impl Server {
         }
     }
 
+    /// Lock the game map, recovering from a poisoned mutex so one panicking
+    /// tool call can't permanently deadlock every later request.
+    fn games(&self) -> MutexGuard<'_, HashMap<u64, Game>> {
+        self.games.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
+
     #[tool(description = "Start a new game from startpos, optionally replaying UCI moves. Returns the game state (rule-bug detector: a bad `moves` list surfaces as an error here).")]
     async fn new_game(&self, params: Parameters<NewGameRequest>) -> Result<Json<GameStateResp>, String> {
         let mut game = Game::new();
@@ -259,20 +271,20 @@ impl Server {
         }
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
         let resp = game_state_resp(id, &game);
-        self.games.lock().unwrap().insert(id, game);
+        self.games().insert(id, game);
         Ok(Json(resp))
     }
 
     #[tool(description = "Get the current state of a game by id.")]
     async fn get_state(&self, params: Parameters<GameIdRequest>) -> Result<Json<GameStateResp>, String> {
-        let games = self.games.lock().unwrap();
+        let games = self.games();
         let game = games.get(&params.0.game_id).ok_or("unknown game_id")?;
         Ok(Json(game_state_resp(params.0.game_id, game)))
     }
 
     #[tool(description = "List legal moves (UCI) for a game, optionally restricted to one square.")]
     async fn legal_moves(&self, params: Parameters<LegalMovesRequest>) -> Result<Json<LegalMovesResp>, String> {
-        let games = self.games.lock().unwrap();
+        let games = self.games();
         let game = games.get(&params.0.game_id).ok_or("unknown game_id")?;
         let all = game.legal_moves(game.turn);
         let moves: Vec<String> = match &params.0.square {
@@ -290,7 +302,7 @@ impl Server {
 
     #[tool(description = "Play a UCI move in a game. Illegal moves return {ok:false, error, legal_uci} instead of mutating state — the rule-bug detector.")]
     async fn make_move(&self, params: Parameters<MakeMoveRequest>) -> Result<Json<MakeMoveResp>, String> {
-        let mut games = self.games.lock().unwrap();
+        let mut games = self.games();
         let game = games.get_mut(&params.0.game_id).ok_or("unknown game_id")?;
 
         let parsed = parse_uci_move(&params.0.uci);
@@ -324,14 +336,15 @@ impl Server {
 
     #[tool(description = "Perft (node count at a fixed depth) from a game's current position — a correctness oracle for move generation.")]
     async fn perft(&self, params: Parameters<PerftRequest>) -> Result<Json<PerftResp>, String> {
-        let mut games = self.games.lock().unwrap();
+        let mut games = self.games();
         let game = games.get_mut(&params.0.game_id).ok_or("unknown game_id")?;
-        Ok(Json(PerftResp { nodes: perft(game, params.0.depth) }))
+        let depth = params.0.depth.min(MAX_PERFT_DEPTH);
+        Ok(Json(PerftResp { nodes: perft(game, depth) }))
     }
 
     #[tool(description = "Evaluate a game's position with a persona's HCE breakdown (material/pst/mobility/pawns/capture/total) — an eval-critique surface.")]
     async fn evaluate(&self, params: Parameters<EvaluateRequest>) -> Result<Json<EvaluateResp>, String> {
-        let games = self.games.lock().unwrap();
+        let games = self.games();
         let game = games.get(&params.0.game_id).ok_or("unknown game_id")?;
         let persona = persona_from_str(&params.0.persona);
         let phase = get_phase(&game.board);
@@ -348,12 +361,13 @@ impl Server {
 
     #[tool(description = "Ask the persona search engine for its best move at a fixed depth (no time budget, no randomness/bonuses).")]
     async fn engine_move(&self, params: Parameters<EngineMoveRequest>) -> Result<Json<EngineMoveResp>, String> {
-        let mut games = self.games.lock().unwrap();
+        let mut games = self.games();
         let game = games.get_mut(&params.0.game_id).ok_or("unknown game_id")?;
         let persona = persona_from_str(&params.0.persona);
         let turn = game.turn;
+        let depth = params.0.depth.min(MAX_SEARCH_DEPTH);
         let cfg = SearchConfig { persona, add_randomness: false, deadline: None };
-        let result = get_best_move(game, turn, params.0.depth, &cfg, &|_m| 0.0);
+        let result = get_best_move(game, turn, depth, &cfg, &|_m| 0.0);
         let uci = result.best_move.map(|m| move_to_uci(&game.board, m));
         Ok(Json(EngineMoveResp {
             uci,
@@ -384,9 +398,9 @@ impl Server {
             }
 
             let (persona, depth) = if game.turn == Color::White {
-                (white_persona, params.0.white_depth)
+                (white_persona, params.0.white_depth.min(MAX_SEARCH_DEPTH))
             } else {
-                (black_persona, params.0.black_depth)
+                (black_persona, params.0.black_depth.min(MAX_SEARCH_DEPTH))
             };
             let cfg = SearchConfig { persona, add_randomness: false, deadline: None };
             let turn = game.turn;

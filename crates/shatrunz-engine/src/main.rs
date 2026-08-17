@@ -126,8 +126,12 @@ fn handle_go(pos: &mut EnginePosition, line: &str, stdout: &mut impl Write) -> i
     let randomness = parse_go_int(line, "randomness", 0);
     let time_ms = compute_time_ms(line, pos.side_to_move);
 
+    // Cap so a hostile/accidental `go depth N` (huge N) cannot overflow the
+    // recursion stack (mirrors the C engine's MAX_PLY clamp).
+    const MAX_GO_DEPTH: i32 = 128;
+    let depth = depth.clamp(1, MAX_GO_DEPTH);
     let best = if time_ms > 0 {
-        let max_depth = if depth > 0 { depth } else { 64 };
+        let max_depth = depth;
         search_timed(pos, max_depth, randomness, time_ms, |d, score_cp, mv| {
             let uci = engine_move_to_uci(&mv);
             // Mirrors emit_search_info (search.c:29-37): root static eval

@@ -100,7 +100,10 @@ fn alphabeta(game: &mut Game, depth: i32, mut alpha: f64, beta: f64, color: Colo
     if deadline_passed(cfg) {
         return evaluate_with_randomness(&game.board, color, cfg);
     }
-    if depth == 0 {
+    // `<= 0` (not `== 0`): search_one_depth can call this with `depth as i32
+    // - 1`, which is -1 when depth is 0. An `== 0` check let that recurse
+    // -2, -3, ... forever and overflow the stack.
+    if depth <= 0 {
         return quiescence(game, alpha, beta, color, cfg, 4);
     }
 

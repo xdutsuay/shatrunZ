@@ -81,11 +81,19 @@ impl Board {
 
     #[inline]
     pub fn get(&self, r: usize, c: usize) -> Option<Piece> {
+        // Bounds-check so an out-of-range coordinate (e.g. from the WASM/JS
+        // boundary) returns None instead of panicking on the index.
+        if r >= BOARD_SIZE || c >= BOARD_SIZE {
+            return None;
+        }
         self.cells[r][c]
     }
 
     #[inline]
     pub fn set(&mut self, r: usize, c: usize, piece: Option<Piece>) {
+        if r >= BOARD_SIZE || c >= BOARD_SIZE {
+            return;
+        }
         self.cells[r][c] = piece;
     }
 

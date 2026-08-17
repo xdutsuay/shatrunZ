@@ -49,12 +49,14 @@ pub fn compute_go_time_ms(input: ClockBudgetInput) -> i64 {
     }
 
     // Base share of the clock plus most (not all) of the increment we get back.
-    let mut budget = remaining / 20 + (inc * 4) / 5;
+    // saturating_mul keeps huge user-supplied clocks (e.g. `go wtime
+    // 9223372036854775807`) from overflowing i64 and panicking in debug builds.
+    let mut budget = remaining / 20 + inc.saturating_mul(4) / 5;
 
     // Hard safety: a single move may not consume more than MAX_FRACTION of
     // the clock — prevents "burn the whole clock on the first move" when
     // increment is large or time is low.
-    let cap = (remaining * MAX_FRACTION_NUM) / MAX_FRACTION_DEN;
+    let cap = remaining.saturating_mul(MAX_FRACTION_NUM) / MAX_FRACTION_DEN;
     if budget > cap {
         budget = cap;
     }
